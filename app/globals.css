@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: nice defaults */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: #000;
+  color: #fff;
+}
