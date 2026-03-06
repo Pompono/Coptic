@@ -151,7 +151,7 @@ const KB_ABC: KeyDef[][] = [
 const KB_NUMBERS: KeyDef[][] = [
   ["ⲁ̅", "ⲃ̅", "ⲅ̅", "ⲇ̅", "ⲉ̅", "ⲋ̅", "ⲍ̅", "ⲏ̅", "ⲑ̅", "ⲓ̅"],
   ["ⲕ̅", "ⲗ̅", "ⲙ̅", "ⲛ̅", "ⲝ̅", "ⲟ̅", "ⲡ̅", "ϥ̅", "ⲣ̅"],
-  ["ⲥ̅", "ⲧ̅", "ⲩ̅", "ⲫ̅", "ⲭ̅", "ⲯ̅", "ⲱ̅", "ϣ̅", { key: "backspace" }],
+  ["ⲥ̅", "ⲧ̅", "̅", "ⲫ̅", "ⲭ̅", "ⲯ̅", "ⲱ̅", "ϣ̅", { key: "backspace" }],
   [".", "⳾", ":", "–", "⸗", { key: "backspace" }],
   [{ key: "toSymbols", label: "#+=" }, { key: "toABC", label: "ⲁ̅ⲃ̅ⲅ̅" }, { key: "space" }, { key: "return" }],
 ];
@@ -383,6 +383,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           fontSize: 26,
           color: "white",
           outline: "none",
+          fontFamily: "var(--coptic-font-family)",
+          fontWeight: 500,
         }}
       />
 
@@ -426,7 +428,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           <span style={{ color: "#7CFC9A", fontWeight: 800 }}>Correct ✅</span>
         ) : status === "wrong" ? (
           <span style={{ color: "#FF6B6B", fontWeight: 800 }}>
-            Not quite — expected: <span style={{ opacity: 0.9 }}>{expected}</span>
+            Not quite — expected: <span className="coptic-text" style={{ opacity: 0.9 }}>{expected}</span>
           </span>
         ) : null}
       </div>
@@ -517,7 +519,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
                       border: "1px solid rgba(255,255,255,0.12)",
                       color: isShiftKey ? shiftKeyFg : "white",
                       fontSize: isMobileViewport ? 18 : 20,
-                      fontWeight: 800,
+                      fontWeight: 700,
+                      fontFamily: "var(--coptic-font-family)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -551,7 +554,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
                     ) : isSpace ? (
                       ""
                     ) : (
-                      displayKey(k)
+                      <span className="coptic-text">{displayKey(k)}</span>
                     )}
                   </button>
                 );

@@ -5,6 +5,8 @@
 @font-face {
   font-family: "FreeSerifAvvaShenouda";
   src: url("/FreeSerifAvvaShenouda.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
   font-display: swap;
 }
 
@@ -17,6 +19,12 @@
 }
 
 .coptic-text {
+  font-family: var(--coptic-font-family);
+}
+
+input.coptic-text,
+textarea.coptic-text,
+button.coptic-text {
   font-family: var(--coptic-font-family);
 }
 

@@ -259,28 +259,8 @@ export default function DictionaryPage() {
           dialect: "unknown",
         }));
 
-        const merged = [...bohEntries, ...comboEntries];
-
-        const seen = new Set<string>();
-        const deduped: Entry[] = [];
-        for (const e of merged) {
-          const key =
-            e.lemma +
-            "|" +
-            e.pos +
-            "|" +
-            e.dialect +
-            "|" +
-            e.forms.join(",") +
-            "|" +
-            e.gloss.join(",");
-          if (seen.has(key)) continue;
-          seen.add(key);
-          deduped.push(e);
-        }
-
         if (!cancelled) {
-          setEntries(deduped);
+          setEntries([...bohEntries, ...comboEntries]);
           setLoadState("ready");
         }
       } catch {
@@ -294,108 +274,6 @@ export default function DictionaryPage() {
     };
   }, []);
 
-  const posOptions = useMemo(() => {
-    const s = new Set<string>();
-    for (const e of entries) {
-      const p = (e.pos || "").trim();
-      if (p) s.add(p);
-    }
-    return ["All", ...Array.from(s).sort((a, b) => a.localeCompare(b))];
-  }, [entries]);
-
-  const filtered = useMemo(() => {
-    const q = norm(query);
-
-    let list = entries;
-
-    if (bohairicOnly) list = list.filter((e) => e.dialect === "boh");
-    if (examplesOnly) list = list.filter((e) => hasExamples(e));
-    if (posFilter !== "All") list = list.filter((e) => e.pos === posFilter);
-
-    if (!q) {
-      return list
-        .slice()
-        .sort((a, b) =>
-          a.dialect !== b.dialect
-            ? a.dialect === "boh"
-              ? -1
-              : 1
-            : a.lemma.localeCompare(b.lemma)
-        )
-        .slice(0, 80);
-    }
-
-    const scored: Array<{ e: Entry; score: number }> = [];
-    for (const e of list) {
-      const lemma = norm(e.lemma);
-      const forms = e.forms.map(norm);
-      const gloss = e.gloss.map(norm);
-
-      let score = 0;
-
-      if (lemma === q) score += 100;
-      else if (lemma.startsWith(q)) score += 60;
-      else if (lemma.includes(q)) score += 40;
-
-      if (forms.some((f) => f === q)) score += 35;
-      else if (forms.some((f) => f.startsWith(q))) score += 25;
-      else if (forms.some((f) => f.includes(q))) score += 15;
-
-      if (gloss.some((g) => g.includes(q))) score += 10;
-
-      if (score > 0) {
-        if (e.dialect === "boh") score += 3;
-        scored.push({ e, score });
-      }
-    }
-
-    scored.sort((a, b) => b.score - a.score || a.e.lemma.localeCompare(b.e.lemma));
-    return scored.map((x) => x.e).slice(0, 80);
-  }, [entries, query, bohairicOnly, posFilter, examplesOnly]);
-
-  const totalShown = filtered.length;
-  const totalAll = useMemo(() => {
-    let list = entries;
-    if (bohairicOnly) list = list.filter((e) => e.dialect === "boh");
-    if (examplesOnly) list = list.filter((e) => hasExamples(e));
-    if (posFilter !== "All") list = list.filter((e) => e.pos === posFilter);
-    return list.length;
-  }, [entries, bohairicOnly, examplesOnly, posFilter]);
-
-  const posCounts = useMemo(() => {
-    let list = entries;
-    if (bohairicOnly) list = list.filter((e) => e.dialect === "boh");
-    if (examplesOnly) list = list.filter((e) => hasExamples(e));
-
-    const counts = new Map<string, number>();
-    for (const e of list) {
-      const p = (e.pos || "").trim();
-      if (!p) continue;
-      counts.set(p, (counts.get(p) ?? 0) + 1);
-    }
-    return counts;
-  }, [entries, bohairicOnly, examplesOnly]);
-
-  const posSearchNorm = posSearch.trim().toLowerCase();
-  const displayedPosOptions = useMemo(() => {
-    if (!posSearchNorm) return posOptions;
-    return posOptions.filter((p) =>
-      p === "All" ? "all parts of speech".includes(posSearchNorm) : p.toLowerCase().includes(posSearchNorm)
-    );
-  }, [posOptions, posSearchNorm]);
-
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (!posDropdownRef.current) return;
-      if (!posDropdownRef.current.contains(event.target as Node)) {
-        setPosOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, []);
-
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 768px)");
     const update = () => setIsMobileViewport(mql.matches);
@@ -405,9 +283,127 @@ export default function DictionaryPage() {
   }, []);
 
   useEffect(() => {
-    if (!isMobileViewport || !showKeyboard) return;
-    queryInputRef.current?.blur();
-  }, [isMobileViewport, showKeyboard]);
+    if (!posOpen) return;
+    function onDocPointerDown(e: PointerEvent) {
+      const el = posDropdownRef.current;
+      if (!el) return;
+      if (el.contains(e.target as Node)) return;
+      setPosOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setPosOpen(false);
+    }
+    document.addEventListener("pointerdown", onDocPointerDown);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointerDown);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [posOpen]);
+
+  const allPos = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entries) {
+      const p = (e.pos || "").trim();
+      if (p) set.add(p);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const displayedPosOptions = useMemo(() => {
+    const q = posSearch.trim().toLowerCase();
+    const base = ["All", ...allPos];
+    if (!q) return base;
+    return base.filter((p) => (p === "All" ? true : p.toLowerCase().includes(q)));
+  }, [allPos, posSearch]);
+
+  const filtered = useMemo(() => {
+    const q = norm(query);
+
+    const byText = entries.filter((e) => {
+      if (!q) return true;
+      const inLemma = norm(e.lemma).includes(q);
+      const inForms = e.forms.some((f) => norm(f).includes(q));
+      const inGloss = e.gloss.some((g) => norm(g).includes(q));
+      return inLemma || inForms || inGloss;
+    });
+
+    const byDialect = bohairicOnly
+      ? byText.filter((e) => e.dialect === "boh")
+      : byText;
+
+    const byPos =
+      posFilter === "All"
+        ? byDialect
+        : byDialect.filter((e) => (e.pos || "").trim() === posFilter);
+
+    const byExamples = examplesOnly ? byPos.filter((e) => hasExamples(e)) : byPos;
+
+    return byExamples
+      .slice()
+      .sort((a, b) => {
+        if (a.dialect !== b.dialect) return a.dialect === "boh" ? -1 : 1;
+        return a.lemma.localeCompare(b.lemma);
+      });
+  }, [entries, query, bohairicOnly, posFilter, examplesOnly]);
+
+  const posCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    let total = 0;
+
+    const base = bohairicOnly
+      ? entries.filter((e) => e.dialect === "boh")
+      : entries.slice();
+
+    const textFiltered = base.filter((e) => {
+      const q = norm(query);
+      if (!q) return true;
+      const inLemma = norm(e.lemma).includes(q);
+      const inForms = e.forms.some((f) => norm(f).includes(q));
+      const inGloss = e.gloss.some((g) => norm(g).includes(q));
+      return inLemma || inForms || inGloss;
+    });
+
+    const examplesFiltered = examplesOnly
+      ? textFiltered.filter((e) => hasExamples(e))
+      : textFiltered;
+
+    for (const e of examplesFiltered) {
+      const p = (e.pos || "").trim() || "(unspecified)";
+      map.set(p, (map.get(p) ?? 0) + 1);
+      total += 1;
+    }
+
+    return { map, total };
+  }, [entries, bohairicOnly, query, examplesOnly]);
+
+  const totalShown = filtered.length;
+  const totalAll = posCounts.total;
+
+  const page: KeyDef[][] =
+    mode === "ABC" ? KB_ABC : mode === "NUMBERS" ? KB_NUMBERS : KB_SYMBOLS;
+
+  const isCopticMode = mode === "ABC";
+
+  const applyShiftToChar = (ch: string) => {
+    if (!isCopticMode) return ch;
+    if (!isCopticLetter(ch)) return ch;
+    if (shiftMode === "off") return ch;
+    const out = COPTIC_CASE_MAP[ch] ?? ch;
+    if (shiftMode === "once") setShiftMode("off");
+    return out;
+  };
+
+  const displayKey = (k: KeyDef) => {
+    if (isKeyObj(k)) return k.label ?? "";
+    if (!isCopticMode) return k;
+    if (!isCopticLetter(k)) return k;
+    if (shiftMode === "off") return k;
+    return COPTIC_CASE_MAP[k] ?? k;
+  };
+
+  const shiftActive = shiftMode !== "off";
+  const capsLock = shiftMode === "lock";
 
   const handleShiftTap = () => {
     const now = Date.now();
@@ -427,46 +423,40 @@ export default function DictionaryPage() {
     setShiftMode((prev) => (prev === "off" ? "once" : "off"));
   };
 
-  const applyShiftToChar = (ch: string) => {
-    if (!isCopticLetter(ch)) return ch;
-    if (shiftMode === "off") return ch;
-
-    const out = COPTIC_CASE_MAP[ch] ?? ch;
-    if (shiftMode === "once") setShiftMode("off");
-    return out;
-  };
-
-  const displayKey = (k: KeyDef) => {
-    if (isKeyObj(k)) return k.label ?? "";
-    if (!isCopticLetter(k)) return k;
-    if (shiftMode === "off") return k;
-    return COPTIC_CASE_MAP[k] ?? k;
+  const hideKeyboardOnManualInputFocus = () => {
+    if (!isMobileViewport) return;
+    setShowKeyboard(false);
   };
 
   const handleKey = (k: KeyDef) => {
-    queryInputRef.current?.blur();
-
     if (isKeyObj(k)) {
       switch (k.key) {
         case "backspace":
           setQuery((q) => removeLastChar(q));
           return;
+
         case "shift":
-          handleShiftTap();
+          if (isCopticMode) handleShiftTap();
           return;
+
         case "space":
           setQuery((q) => q + " ");
           return;
+
         case "return":
+          queryInputRef.current?.blur();
           return;
+
         case "toABC":
           setMode("ABC");
           setShiftMode("off");
           return;
+
         case "toNumbers":
           setMode("NUMBERS");
           setShiftMode("off");
           return;
+
         case "toSymbols":
           setMode("SYMBOLS");
           setShiftMode("off");
@@ -476,26 +466,26 @@ export default function DictionaryPage() {
 
     const ch = typeof k === "string" ? k : "";
     if (!ch) return;
-    setQuery((q) => q + applyShiftToChar(ch));
-  };
-
-  const page: KeyDef[][] = mode === "ABC" ? KB_ABC : mode === "NUMBERS" ? KB_NUMBERS : KB_SYMBOLS;
-  const shiftActive = shiftMode !== "off";
-  const capsLock = shiftMode === "lock";
-
-  const hideKeyboardOnManualInputFocus = () => {
-    if (!isMobileViewport) return;
-    setShowKeyboard(false);
+    const out = applyShiftToChar(ch);
+    setQuery((q) => q + out);
   };
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main
+      className="min-h-screen bg-black text-white"
+      style={{
+        paddingBottom:
+          isMobileViewport && showKeyboard
+            ? "calc(340px + env(safe-area-inset-bottom, 0px))"
+            : undefined,
+      }}
+    >
       <div
-        className="mx-auto max-w-3xl px-5 py-8"
+        className="mx-auto max-w-5xl px-5 py-8"
         style={{
           paddingBottom:
             isMobileViewport && showKeyboard
-              ? "calc(360px + env(safe-area-inset-bottom, 0px))"
+              ? "calc(24px + env(safe-area-inset-bottom, 0px))"
               : undefined,
         }}
       >
@@ -617,7 +607,8 @@ export default function DictionaryPage() {
                             border: "1px solid rgba(255,255,255,0.12)",
                             color: isShiftKey ? shiftKeyFg : "white",
                             fontSize: 20,
-                            fontWeight: 800,
+                            fontWeight: 700,
+                            fontFamily: "var(--coptic-font-family)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -691,7 +682,7 @@ export default function DictionaryPage() {
                   <div className="max-h-80 overflow-auto pr-1">
                     {displayedPosOptions.map((p) => {
                       const isSelected = posFilter === p;
-                      const count = p === "All" ? totalAll : posCounts.get(p) ?? 0;
+                      const count = p === "All" ? totalAll : posCounts.map.get(p) ?? 0;
 
                       return (
                         <button
@@ -768,57 +759,82 @@ export default function DictionaryPage() {
                     <div className="mt-1 text-sm text-white/55">
                       Forms:{" "}
                       <span className="coptic-text text-white/70">
-                        {e.forms.filter((x) => x !== e.lemma).slice(0, 8).join(", ")}
+                        {e.forms.filter((x) => x !== e.lemma).join(", ")}
                       </span>
-                      {e.forms.length > 9 ? <span className="text-white/40"> …</span> : null}
                     </div>
                   )}
-                </div>
 
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <span
-                    className={[
-                      "rounded-full border px-3 py-1 text-xs",
-                      e.dialect === "boh"
-                        ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                        : "border-white/15 bg-white/5 text-white/70",
-                    ].join(" ")}
-                  >
-                    {e.dialect === "boh" ? "Bohairic" : "Unknown"}
-                  </span>
-
-                  {e.pos ? (
-                    <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
-                      {e.pos}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span
+                      className={[
+                        "rounded-full border px-3 py-1 text-xs",
+                        e.dialect === "boh"
+                          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
+                          : "border-white/15 bg-white/5 text-white/70",
+                      ].join(" ")}
+                    >
+                      {e.dialect === "boh" ? "Bohairic" : "Unknown"}
                     </span>
-                  ) : null}
+
+                    {e.pos ? (
+                      <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
+                        {e.pos}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-2 text-sm text-white/65">
+                    {e.tag ? <span className="mr-3">Tag: {e.tag}</span> : null}
+                    {e.greek ? <span>Greek: {e.greek}</span> : null}
+                    {e.entryUrl ? (
+                      <a
+                        href={e.entryUrl}
+                        className="ml-3 text-white/70 underline decoration-white/30 underline-offset-4 hover:text-white"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View entry
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-white/65">
-                {e.tag ? <span>Tag: {e.tag}</span> : null}
-                {e.greek ? <span>Greek: {e.greek}</span> : null}
-
-                <Link
-                  href={`/dictionary/${encodeURIComponent(e.lemma)}`}
-                  className="text-white/70 underline decoration-white/30 underline-offset-4 hover:text-white"
-                >
-                  View entry
-                </Link>
               </div>
 
               <div className="mt-4">
                 {e.gloss.length ? (
                   <ul className="list-disc space-y-1 pl-5 text-white/85">
-                    {e.gloss.slice(0, 8).map((g, i) => (
+                    {e.gloss.map((g, i) => (
                       <li key={i}>{g}</li>
                     ))}
-                    {e.gloss.length > 8 ? <li className="text-white/45">…</li> : null}
                   </ul>
                 ) : (
                   <div className="text-sm text-white/45">No gloss.</div>
                 )}
               </div>
+
+              {e.examples && e.examples.length > 0 ? (
+                <div className="mt-5">
+                  <div className="text-sm font-semibold text-white/80">
+                    Examples
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {e.examples.slice(0, 5).map((ex, i) => (
+                      <div
+                        key={i}
+                        className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                      >
+                        <div className="coptic-text text-white/90">{ex.sentence}</div>
+                        <div className="mt-2 text-white/65">{ex.translation}</div>
+                        {ex.source ? (
+                          <div className="mt-2 text-xs text-white/45">
+                            {ex.source}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {hasExamples(e) ? (
                 <div className="mt-4 text-sm text-white/70">
@@ -909,7 +925,8 @@ export default function DictionaryPage() {
                         border: "1px solid rgba(255,255,255,0.12)",
                         color: isShiftKey ? shiftKeyFg : "white",
                         fontSize: 18,
-                        fontWeight: 800,
+                        fontWeight: 700,
+                        fontFamily: "var(--coptic-font-family)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
