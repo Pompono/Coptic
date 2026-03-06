@@ -211,9 +211,11 @@ export default function DictionaryPage() {
   const posDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [showKeyboard, setShowKeyboard] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<PageMode>("ABC");
   const [shiftMode, setShiftMode] = useState<"off" | "once" | "lock">("off");
   const lastShiftTapRef = useRef<number>(0);
+  const queryInputRef = useRef<HTMLInputElement | null>(null);
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
@@ -394,6 +396,19 @@ export default function DictionaryPage() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobileViewport(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport || !showKeyboard) return;
+    queryInputRef.current?.blur();
+  }, [isMobileViewport, showKeyboard]);
+
   const handleShiftTap = () => {
     const now = Date.now();
     const delta = now - lastShiftTapRef.current;
@@ -429,6 +444,8 @@ export default function DictionaryPage() {
   };
 
   const handleKey = (k: KeyDef) => {
+    queryInputRef.current?.blur();
+
     if (isKeyObj(k)) {
       switch (k.key) {
         case "backspace":
@@ -466,9 +483,22 @@ export default function DictionaryPage() {
   const shiftActive = shiftMode !== "off";
   const capsLock = shiftMode === "lock";
 
+  const hideKeyboardOnManualInputFocus = () => {
+    if (!isMobileViewport) return;
+    setShowKeyboard(false);
+  };
+
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-3xl px-5 py-8">
+      <div
+        className="mx-auto max-w-3xl px-5 py-8"
+        style={{
+          paddingBottom:
+            isMobileViewport && showKeyboard
+              ? "calc(360px + env(safe-area-inset-bottom, 0px))"
+              : undefined,
+        }}
+      >
         <div className="flex items-center justify-between gap-4">
           <Link
             href="/"
@@ -505,13 +535,16 @@ export default function DictionaryPage() {
           <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/5 px-4 py-3">
             <span className="text-white/50">🔎</span>
             <input
+              ref={queryInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onPointerDown={hideKeyboardOnManualInputFocus}
               placeholder="Search Coptic or English..."
               className="coptic-text w-full bg-transparent text-base outline-none placeholder:text-white/35"
             />
           </div>
 
+          {!isMobileViewport ? (
           <div className="rounded-2xl border border-white/12 bg-white/5 p-3">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-sm text-white/65">Coptic keyboard</span>
@@ -628,6 +661,7 @@ export default function DictionaryPage() {
               </div>
             ) : null}
           </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
             <div ref={posDropdownRef} className="relative min-w-[340px] flex-1">
@@ -797,6 +831,129 @@ export default function DictionaryPage() {
           ))}
         </div>
       </div>
+
+      {isMobileViewport ? (
+        <div className="fixed bottom-4 right-4 z-50">
+          <button
+            type="button"
+            onClick={() => setShowKeyboard((v) => !v)}
+            className="rounded-full border border-white/20 bg-black/80 px-4 py-2 text-xs font-medium text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur"
+          >
+            {showKeyboard ? "Hide Coptic keyboard" : "Show Coptic keyboard"}
+          </button>
+        </div>
+      ) : null}
+
+      {isMobileViewport && showKeyboard ? (
+        <div
+          style={{
+            position: "fixed",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 40,
+            background: "rgba(6,6,7,0.96)",
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+            backdropFilter: "blur(10px)",
+            padding: "10px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 14,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}
+          >
+            {page.map((row, rIdx) => (
+              <div
+                key={rIdx}
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  justifyContent: "center",
+                  marginBottom: rIdx === page.length - 1 ? 0 : 8,
+                }}
+              >
+                {row.map((k, i) => {
+                  const obj = isKeyObj(k) ? k : null;
+
+                  const isSpace = obj?.key === "space";
+                  const isReturn = obj?.key === "return";
+                  const isBackspace = obj?.key === "backspace";
+                  const isShiftKey = obj?.key === "shift";
+
+                  const flex = isSpace ? 5 : isReturn ? 2.2 : isBackspace || isShiftKey ? 1.6 : obj ? 1.4 : 1;
+
+                  const shiftKeyBg = shiftActive ? "white" : "rgba(255,255,255,0.10)";
+                  const shiftKeyFg = shiftActive ? "black" : "white";
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleKey(k)}
+                      style={{
+                        flex,
+                        minWidth: 0,
+                        height: 50,
+                        borderRadius: 12,
+                        background: isShiftKey
+                          ? shiftKeyBg
+                          : obj?.key === "return"
+                          ? "rgba(255,255,255,0.18)"
+                          : obj?.key === "toNumbers" || obj?.key === "toSymbols" || obj?.key === "toABC"
+                          ? "rgba(255,255,255,0.14)"
+                          : "rgba(255,255,255,0.10)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        color: isShiftKey ? shiftKeyFg : "white",
+                        fontSize: 18,
+                        fontWeight: 800,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        padding: "0 6px",
+                        position: "relative",
+                      }}
+                    >
+                      {isBackspace ? (
+                        <IconBackspace />
+                      ) : isShiftKey ? (
+                        <>
+                          <IconShift />
+                          {capsLock ? (
+                            <span
+                              style={{
+                                position: "absolute",
+                                bottom: 8,
+                                width: 18,
+                                height: 3,
+                                borderRadius: 3,
+                                background: "black",
+                                opacity: 0.9,
+                              }}
+                            />
+                          ) : null}
+                        </>
+                      ) : isReturn ? (
+                        "↩"
+                      ) : isSpace ? (
+                        ""
+                      ) : (
+                        <span className="coptic-text">{displayKey(k)}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
     </main>
   );
 }
