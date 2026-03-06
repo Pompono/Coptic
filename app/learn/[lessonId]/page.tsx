@@ -1,6 +1,6 @@
 // app/learn/[lessonId]/page.tsx
 import Link from "next/link";
-import { lessons } from "../../../lib/lesson";
+import { lessons } from "@/lib/lesson";
 import LessonClient from "./LessonClient";
 
 export default async function LessonPage({
@@ -34,8 +34,19 @@ export default async function LessonPage({
         </p>
 
         <p style={{ marginTop: 14 }}>
-          <Link href="/learn" style={{ color: "white" }}>
-            ← Back to Learn
+          <Link
+            href="/learn"
+            style={{
+              display: "inline-block",
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "white",
+              textDecoration: "none",
+              fontWeight: 700,
+            }}
+          >
+            ← Back
           </Link>
         </p>
       </main>

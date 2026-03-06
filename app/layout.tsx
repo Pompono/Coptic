@@ -1,6 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
+import CopticFontPreference from "./CopticFontPreference";
 
 export const metadata: Metadata = {
   title: "Coptic",
@@ -14,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CopticFontPreference />
+        {children}
+      </body>
     </html>
   );
 }

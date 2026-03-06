@@ -1,13 +1,29 @@
 // app/learn/page.tsx
 import Link from "next/link";
-import { lessons } from "../../lib/lesson";
+import { lessons } from "@/lib/lesson";
 
 export default function LearnIndexPage() {
   const first = lessons[0];
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 40, marginBottom: 8 }}>Learn</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <h1 style={{ fontSize: 40, marginBottom: 8 }}>Learn</h1>
+        <Link
+          href="/"
+          style={{
+            display: "inline-block",
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.25)",
+            color: "white",
+            textDecoration: "none",
+            fontWeight: 700,
+          }}
+        >
+          ← Back
+        </Link>
+      </div>
 
       {first ? (
         <Link

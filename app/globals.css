@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "FreeSerifAvvaShenouda";
+  src: url("/FreeSerifAvvaShenouda.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  --coptic-font-family: "Noto Sans Coptic", "Segoe UI Symbol", "Arial Unicode MS", serif;
+}
+
+:root[data-coptic-font="avva"] {
+  --coptic-font-family: "FreeSerifAvvaShenouda", "Noto Sans Coptic", "Segoe UI Symbol", "Arial Unicode MS", serif;
+}
+
+.coptic-text {
+  font-family: var(--coptic-font-family);
+}
+
 /* Optional: nice defaults */
 html,
 body {

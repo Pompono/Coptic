@@ -148,7 +148,7 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
           </button>
         </div>
 
-        <h1 className="mt-7 text-4xl font-semibold tracking-tight">{lemma}</h1>
+        <h1 className="coptic-text mt-7 text-4xl font-semibold tracking-tight">{lemma}</h1>
 
         {state === "loading" ? (
           <p className="mt-4 text-white/60">Loading…</p>
@@ -168,7 +168,7 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
                     {e.forms.length > 1 && (
                       <div className="text-sm text-white/55">
                         Forms:{" "}
-                        <span className="text-white/70">
+                        <span className="coptic-text text-white/70">
                           {e.forms.filter((x) => x !== e.lemma).join(", ")}
                         </span>
                       </div>
@@ -233,7 +233,7 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
                           key={i}
                           className="rounded-2xl border border-white/10 bg-black/40 p-4"
                         >
-                          <div className="text-white/90">{ex.sentence}</div>
+                          <div className="coptic-text text-white/90">{ex.sentence}</div>
                           <div className="mt-2 text-white/65">{ex.translation}</div>
                           {ex.source ? (
                             <div className="mt-2 text-xs text-white/45">

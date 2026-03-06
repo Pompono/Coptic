@@ -173,6 +173,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
 
   const [mode, setMode] = useState<PageMode>("ABC");
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   // shiftMode:
   // - "off" = lowercase
@@ -190,6 +191,14 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
   useEffect(() => {
     inputRef.current?.focus();
   }, [stepIndex, mode]);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobileViewport(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
 
   if (!lesson) {
     return (
@@ -328,7 +337,15 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
   const capsLock = shiftMode === "lock";
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 24, color: "white" }}>
+    <main
+      style={{
+        maxWidth: 900,
+        margin: "0 auto",
+        padding: 24,
+        color: "white",
+        paddingBottom: isMobileViewport ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
           <div style={{ opacity: 0.85, marginBottom: 6 }}>{lesson.title}</div>
@@ -434,13 +451,27 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
       ) : null}
 
       {/* Keyboard */}
-      <div style={{ marginTop: 18 }}>
+      <div
+        style={{
+          marginTop: 18,
+          position: isMobileViewport ? "fixed" : "static",
+          left: isMobileViewport ? 0 : undefined,
+          right: isMobileViewport ? 0 : undefined,
+          bottom: isMobileViewport ? 0 : undefined,
+          zIndex: isMobileViewport ? 50 : undefined,
+          background: isMobileViewport ? "rgba(6,6,7,0.96)" : undefined,
+          borderTop: isMobileViewport ? "1px solid rgba(255,255,255,0.12)" : undefined,
+          backdropFilter: isMobileViewport ? "blur(10px)" : undefined,
+          padding: isMobileViewport ? "10px 10px calc(8px + env(safe-area-inset-bottom, 0px))" : undefined,
+        }}
+      >
         <div
           style={{
             padding: 12,
-            borderRadius: 16,
+            borderRadius: isMobileViewport ? 14 : 16,
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.10)",
+            maxWidth: isMobileViewport ? "100%" : undefined,
           }}
         >
           {page.map((row, rIdx) => (
@@ -448,9 +479,9 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
               key={rIdx}
               style={{
                 display: "flex",
-                gap: 8,
+                gap: isMobileViewport ? 6 : 8,
                 justifyContent: "center",
-                marginBottom: rIdx === page.length - 1 ? 0 : 10,
+                marginBottom: rIdx === page.length - 1 ? 0 : isMobileViewport ? 8 : 10,
               }}
             >
               {row.map((k, i) => {
@@ -473,9 +504,9 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
                     onClick={() => handleKey(k)}
                     style={{
                       flex,
-                      minWidth: 44,
-                      height: 56,
-                      borderRadius: 14,
+                      minWidth: isMobileViewport ? 0 : 44,
+                      height: isMobileViewport ? 50 : 56,
+                      borderRadius: isMobileViewport ? 12 : 14,
                       background: isShiftKey
                         ? shiftKeyBg
                         : obj?.key === "return"
@@ -485,14 +516,14 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
                         : "rgba(255,255,255,0.10)",
                       border: "1px solid rgba(255,255,255,0.12)",
                       color: isShiftKey ? shiftKeyFg : "white",
-                      fontSize: 20,
+                      fontSize: isMobileViewport ? 18 : 20,
                       fontWeight: 800,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       cursor: "pointer",
                       userSelect: "none",
-                      padding: "0 10px",
+                      padding: isMobileViewport ? "0 6px" : "0 10px",
                       position: "relative",
                     }}
                   >
