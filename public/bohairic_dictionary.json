@@ -16522,7 +16522,7 @@
     "bohairic_examples": []
   },
   {
-    "word": "ⲑⲗⲓⲯⲓⲥ",
+    "word": "ⲑ̀ⲗⲓⲯⲓⲥ",
     "tla_id": "C9183",
     "entry_url": "https://coptic-dictionary.org/entry.py?tla=C9183",
     "bohairic_variants": [
@@ -30722,15 +30722,15 @@
     ]
   },
   {
-    "word": "ⲛⲃⲗ-",
+    "word": "ⲉ̀ⲃⲏⲗ",
     "tla_id": "C421",
     "entry_url": "https://coptic-dictionary.org/entry.py?tla=C421",
     "bohairic_variants": [
-      "ⲉⲃⲏⲗ"
+      "ⲛⲃⲗ-"
     ],
     "pos": "",
     "scriptorium_tag": "PREP",
-    "greek_origin": "",
+    "grzeek_origin": "",
     "senses": [],
     "bohairic_examples": [
       {
