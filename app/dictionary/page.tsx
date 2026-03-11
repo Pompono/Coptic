@@ -205,6 +205,7 @@ export default function DictionaryPage() {
   const [query, setQuery] = useState("");
   const [translationInput, setTranslationInput] = useState("");
   const [translations, setTranslations] = useState<string[]>([]);
+  const [translatorDialect, setTranslatorDialect] = useState<"sahidic" | "bohairic">("bohairic");
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "error">("idle");
   const [translationError, setTranslationError] = useState("");
   const [bohairicOnly, setBohairicOnly] = useState(false);
@@ -435,7 +436,7 @@ export default function DictionaryPage() {
   const runTranslation = async () => {
     const text = translationInput.trim();
     if (!text) {
-      setTranslationError("Enter English text to translate.");
+      setTranslationError("Enter Coptic text to translate.");
       setTranslations([]);
       setTranslationState("error");
       return;
@@ -448,20 +449,25 @@ export default function DictionaryPage() {
       const res = await fetch("/api/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          dialect: translatorDialect,
+          includeConfidence: true,
+        }),
       });
 
       const payload = (await res.json()) as {
-        translations?: string[];
+        translation?: string;
+        confidence?: number;
+        dialect?: "sahidic" | "bohairic";
         error?: string;
-        hint?: string;
-        backendUrl?: string;
+        details?: string;
       };
       if (!res.ok) {
         setTranslations([]);
         setTranslationState("error");
 
-        const details = [payload.error, payload.hint, payload.backendUrl ? `Backend: ${payload.backendUrl}` : ""]
+        const details = [payload.error, payload.details]
           .filter(Boolean)
           .join(" ");
 
@@ -469,7 +475,8 @@ export default function DictionaryPage() {
         return;
       }
 
-      const next = Array.isArray(payload.translations) ? payload.translations : [];
+      const top = typeof payload.translation === "string" ? payload.translation.trim() : "";
+      const next = top ? [top] : [];
       setTranslations(next);
       setTranslationState("idle");
 
@@ -482,6 +489,8 @@ export default function DictionaryPage() {
       setTranslationError("Could not reach translation service.");
     }
   };
+
+    const dialectLabel = translatorDialect === "bohairic" ? "Bohairic" : "Sahidic";
 
   const handleKey = (k: KeyDef) => {
     if (isKeyObj(k)) {
@@ -578,14 +587,28 @@ export default function DictionaryPage() {
 
         <div className="mt-5 space-y-3">
           <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4">
-            <p className="text-sm font-medium text-[var(--text-color)]">English → Coptic translator (experimental)</p>
-            <p className="mt-1 text-xs text-[var(--text-muted)]">Uses your configured Coptic translator backend, then drops top output into dictionary search.</p>
+            <p className="text-sm font-medium text-[var(--text-color)]">Coptic → English translator (local model)</p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Uses the local Coptic → English model, then drops top output into dictionary search.</p>
+
+            <div className="mt-3 flex items-center gap-3">
+              <span className="text-xs text-[var(--text-muted)]">Dialect</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setTranslatorDialect((current) => (current === "bohairic" ? "sahidic" : "bohairic"))
+                }
+                className="rounded-full border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-1 text-xs text-[var(--text-color)] hover:bg-[var(--surface-1)]"
+                title="Toggle translator dialect"
+              >
+                {dialectLabel}
+              </button>
+            </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
               <input
                 value={translationInput}
                 onChange={(e) => setTranslationInput(e.target.value)}
-                placeholder="Type English text..."
+                placeholder="Type Coptic text..."
                 className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
               />
               <button

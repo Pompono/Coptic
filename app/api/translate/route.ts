@@ -1,61 +1,58 @@
 import { NextResponse } from "next/server";
+import { spawn } from "node:child_process";
+import path from "node:path";
 
-type BackendTranslation = { text?: string; translation?: string; coptic?: string };
+type Dialect = "sahidic" | "bohairic";
 
-function normalizeTranslation(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+type TranslateRequest = {
+  text?: string;
+  dialect?: Dialect;
+  includeConfidence?: boolean;
+};
+
+type PythonResult = {
+  translation: string;
+  confidence?: number;
+  dialect: Dialect;
+  processed_input?: string;
+};
+
+function toDialect(value: unknown, fallback: Dialect): Dialect {
+  if (value === "bohairic") return "bohairic";
+  if (value === "sahidic") return "sahidic";
+  return fallback;
 }
 
-function extractTranslations(payload: unknown): string[] {
-  if (!payload || typeof payload !== "object") return [];
+function runTranslatorCLI(args: string[]): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  const pythonBin = process.env.COPTIC_TRANSLATOR_PYTHON_BIN || "python3";
+  const scriptPath = path.join(process.cwd(), "translator", "cli.py");
 
-  const obj = payload as Record<string, unknown>;
-  const candidates: string[] = [];
+  return new Promise((resolve, reject) => {
+    const proc = spawn(pythonBin, [scriptPath, ...args], {
+      cwd: process.cwd(),
+      env: process.env,
+    });
 
-  const directKeys = ["translation", "translated_text", "coptic", "output_text", "text"];
-  for (const key of directKeys) {
-    const hit = normalizeTranslation(obj[key]);
-    if (hit) candidates.push(hit);
-  }
+    let stdout = "";
+    let stderr = "";
 
-  const translations = obj.translations;
-  if (Array.isArray(translations)) {
-    for (const item of translations) {
-      if (typeof item === "string") {
-        const hit = normalizeTranslation(item);
-        if (hit) candidates.push(hit);
-        continue;
-      }
-      if (item && typeof item === "object") {
-        const t = item as BackendTranslation;
-        const hit = normalizeTranslation(t.text) ?? normalizeTranslation(t.translation) ?? normalizeTranslation(t.coptic);
-        if (hit) candidates.push(hit);
-      }
-    }
-  }
+    proc.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
 
-  const outputs = obj.outputs;
-  if (Array.isArray(outputs)) {
-    for (const item of outputs) {
-      const hit = normalizeTranslation(item);
-      if (hit) candidates.push(hit);
-    }
-  }
+    proc.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
 
-  return [...new Set(candidates)];
+    proc.on("error", (error) => reject(error));
+    proc.on("close", (code) => resolve({ stdout, stderr, code }));
+  });
 }
 
 export async function POST(request: Request) {
-  const backendUrl =
-    process.env.COPTIC_TRANSLATOR_BACKEND_URL ??
-    process.env.NEXT_PUBLIC_COPTIC_TRANSLATOR_BACKEND_URL ??
-    "http://127.0.0.1:8000/translate";
-
-  let input: { text?: string };
+  let input: TranslateRequest;
   try {
-    input = (await request.json()) as { text?: string };
+    input = (await request.json()) as TranslateRequest;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
@@ -65,44 +62,55 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please provide text." }, { status: 400 });
   }
 
-  try {
-    const res = await fetch(backendUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text }),
-      cache: "no-store",
-    });
+    const defaultDialect = toDialect(process.env.COPTIC_TRANSLATOR_DEFAULT_DIALECT, "sahidic");
+  const dialect = toDialect(input.dialect, defaultDialect);
+  const includeConfidence = Boolean(input.includeConfidence);
+  const includeProcessedInput = process.env.NODE_ENV !== "production";
 
-    if (!res.ok) {
+  const cliArgs = [text, "--dialect", dialect];
+  if (includeConfidence) cliArgs.push("--include-confidence");
+  if (includeProcessedInput) cliArgs.push("--include-processed-input");
+
+  try {
+    const { stdout, stderr, code } = await runTranslatorCLI(cliArgs);
+
+    if (code !== 0) {
       return NextResponse.json(
         {
-          error: `Translator backend failed with status ${res.status}.`,
-          backendUrl,
+          error: "Translator subprocess failed.",
+          details: stderr.trim() || "No stderr output.",
         },
-        { status: 502 }
+        { status: code === 2 ? 400 : 502 }
       );
     }
 
-    const payload = (await res.json()) as unknown;
-    const translations = extractTranslations(payload);
-
-    if (translations.length === 0) {
+    const parsed = JSON.parse(stdout) as PythonResult;
+    if (!parsed || typeof parsed.translation !== "string" || !parsed.translation.trim()) {
       return NextResponse.json(
-        { error: "Translator response did not include a usable translation." },
+        { error: "Translator did not return a valid translation." },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({ translations });
-  } catch {
+    const response: PythonResult = {
+      translation: parsed.translation,
+      dialect: parsed.dialect,
+    };
+
+    if (typeof parsed.confidence === "number") {
+      response.confidence = Number(parsed.confidence);
+    }
+
+    if (includeProcessedInput && typeof parsed.processed_input === "string") {
+      response.processed_input = parsed.processed_input;
+    }
+
+    return NextResponse.json(response);
+  } catch (error) {
     return NextResponse.json(
       {
-        error: "Unable to contact translator backend.",
-        backendUrl,
-        hint:
-          "Set COPTIC_TRANSLATOR_BACKEND_URL in .env.local (or run backend at http://127.0.0.1:8000/translate), then restart Next.js.",
+        error: "Unable to run translator subprocess.",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 502 }
     );

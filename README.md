@@ -1,22 +1,50 @@
 # Coptic
 
-## English → Coptic translator integration
+## Coptic → English translator integration
 
-This app can proxy translation requests to the Coptic NMT backend.
+The app now runs the Hugging Face model `megalaa/coptic-english-translator` locally through a Python CLI wrapper that preserves the model repo's required preprocessing logic (greekify + dialect tag).
 
-### 1) Run the backend
-Set up and run the backend from:
-- https://github.com/Coptic-NMT/coptic-translator-backend
+### 1) Python dependencies
 
-### 2) Configure this frontend
-Create `.env.local` with:
+Install translator dependencies in your environment:
 
 ```bash
-COPTIC_TRANSLATOR_BACKEND_URL=http://localhost:8000/translate
+pip install torch transformers numpy
 ```
 
-> Use the backend endpoint that accepts `POST` JSON payloads like `{ "text": "..." }`.
+### 2) Optional environment variables
 
-### 3) Use it in the Dictionary page
-Open `/dictionary`, enter English text in **English → Coptic translator (experimental)**, then click **Translate**.
-The top translation is copied into dictionary search, and all returned candidates are shown as quick chips.
+Create `.env.local` (optional):
+
+```bash
+# Python executable used by app/api/translate/route.ts
+COPTIC_TRANSLATOR_PYTHON_BIN=python3
+
+# Default dialect used when request body omits "dialect"
+# values: sahidic | bohairic
+COPTIC_TRANSLATOR_DEFAULT_DIALECT=bohairic
+```
+
+> Set `COPTIC_TRANSLATOR_DEFAULT_DIALECT=bohairic` to make in-app translation assume Bohairic by default.
+
+### 3) Use in the Dictionary page
+
+Open `/dictionary`, enter **Coptic** text in the translator box, and click **Translate**.
+
+The top translation is copied into dictionary search.
+
+### 4) Run translator from CLI directly
+
+```bash
+python3 translator/cli.py "ⲡⲉⲛⲛⲟⲩϯ" --dialect bohairic --include-confidence
+```
+
+Example JSON output:
+
+```json
+{
+  "translation": "Our God.",
+  "confidence": 0.61,
+  "dialect": "bohairic"
+}
+```
