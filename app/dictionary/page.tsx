@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 type BohExample = { sentence: string; translation: string; source?: string };
 type BohairicEntryRaw = {
@@ -36,6 +36,9 @@ type Entry = {
   tag?: string;
   greek?: string;
   examples?: BohExample[];
+  searchBlob: string;
+  normalizedPos: string;
+  hasExamples: boolean;
 };
 
 type SpecialKey =
@@ -58,10 +61,6 @@ type PageMode = "ABC" | "NUMBERS" | "SYMBOLS";
 
 function norm(s: string) {
   return (s || "").toLowerCase().normalize("NFKC").trim();
-}
-
-function hasExamples(e: Entry) {
-  return !!(e.examples && e.examples.length > 0);
 }
 
 function uniqueStrings(arr: string[]) {
@@ -218,9 +217,12 @@ export default function DictionaryPage() {
   const queryInputRef = useRef<HTMLInputElement | null>(null);
 
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [resultsLimit, setResultsLimit] = useState(80);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
     "loading"
   );
+
+  const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,25 +241,41 @@ export default function DictionaryPage() {
         });
         const comboRaw = (await comboRes.json()) as CombinedEntryRaw[];
 
-        const bohEntries: Entry[] = bohRaw.map((r) => ({
-          lemma: r.word,
-          forms: uniqueStrings([r.word, ...(r.bohairic_variants ?? [])]),
-          pos: r.pos ?? "",
-          gloss: uniqueStrings(r.senses ?? []),
-          dialect: "boh",
-          entryUrl: r.entry_url,
-          tag: r.scriptorium_tag,
-          greek: r.greek_origin,
-          examples: r.bohairic_examples ?? [],
-        }));
+        const bohEntries: Entry[] = bohRaw.map((r) => {
+          const gloss = uniqueStrings(r.senses ?? []);
+          const forms = uniqueStrings([r.word, ...(r.bohairic_variants ?? [])]);
 
-        const comboEntries: Entry[] = comboRaw.map((r) => ({
-          lemma: r.lemma,
-          forms: uniqueStrings([r.lemma, ...(r.forms ?? [])]),
-          pos: r.pos ?? "",
-          gloss: uniqueStrings(r.gloss ?? []),
-          dialect: "unknown",
-        }));
+          return {
+            lemma: r.word,
+            forms,
+            pos: r.pos ?? "",
+            gloss,
+            dialect: "boh",
+            entryUrl: r.entry_url,
+            tag: r.scriptorium_tag,
+            greek: r.greek_origin,
+            examples: r.bohairic_examples ?? [],
+            searchBlob: norm([r.word, ...forms, ...gloss].join(" ")),
+            normalizedPos: (r.pos ?? "").trim(),
+            hasExamples: !!(r.bohairic_examples && r.bohairic_examples.length > 0),
+          };
+        });
+
+        const comboEntries: Entry[] = comboRaw.map((r) => {
+          const gloss = uniqueStrings(r.gloss ?? []);
+          const forms = uniqueStrings([r.lemma, ...(r.forms ?? [])]);
+
+          return {
+            lemma: r.lemma,
+            forms,
+            pos: r.pos ?? "",
+            gloss,
+            dialect: "unknown",
+            searchBlob: norm([r.lemma, ...forms, ...gloss].join(" ")),
+            normalizedPos: (r.pos ?? "").trim(),
+            hasExamples: false,
+          };
+        });
 
         if (!cancelled) {
           setEntries([...bohEntries, ...comboEntries]);
@@ -273,6 +291,10 @@ export default function DictionaryPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setResultsLimit(80);
+  }, [deferredQuery, bohairicOnly, posFilter, examplesOnly]);
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 768px)");
@@ -318,14 +340,11 @@ export default function DictionaryPage() {
   }, [allPos, posSearch]);
 
   const filtered = useMemo(() => {
-    const q = norm(query);
+    const q = norm(deferredQuery);
 
     const byText = entries.filter((e) => {
       if (!q) return true;
-      const inLemma = norm(e.lemma).includes(q);
-      const inForms = e.forms.some((f) => norm(f).includes(q));
-      const inGloss = e.gloss.some((g) => norm(g).includes(q));
-      return inLemma || inForms || inGloss;
+      return e.searchBlob.includes(q);
     });
 
     const byDialect = bohairicOnly
@@ -335,9 +354,9 @@ export default function DictionaryPage() {
     const byPos =
       posFilter === "All"
         ? byDialect
-        : byDialect.filter((e) => (e.pos || "").trim() === posFilter);
+        : byDialect.filter((e) => e.normalizedPos === posFilter);
 
-    const byExamples = examplesOnly ? byPos.filter((e) => hasExamples(e)) : byPos;
+    const byExamples = examplesOnly ? byPos.filter((e) => e.hasExamples) : byPos;
 
     return byExamples
       .slice()
@@ -345,7 +364,7 @@ export default function DictionaryPage() {
         if (a.dialect !== b.dialect) return a.dialect === "boh" ? -1 : 1;
         return a.lemma.localeCompare(b.lemma);
       });
-  }, [entries, query, bohairicOnly, posFilter, examplesOnly]);
+  }, [entries, deferredQuery, bohairicOnly, posFilter, examplesOnly]);
 
   const posCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -356,26 +375,30 @@ export default function DictionaryPage() {
       : entries.slice();
 
     const textFiltered = base.filter((e) => {
-      const q = norm(query);
+      const q = norm(deferredQuery);
       if (!q) return true;
-      const inLemma = norm(e.lemma).includes(q);
-      const inForms = e.forms.some((f) => norm(f).includes(q));
-      const inGloss = e.gloss.some((g) => norm(g).includes(q));
-      return inLemma || inForms || inGloss;
+      return e.searchBlob.includes(q);
     });
 
     const examplesFiltered = examplesOnly
-      ? textFiltered.filter((e) => hasExamples(e))
+      ? textFiltered.filter((e) => e.hasExamples)
       : textFiltered;
 
     for (const e of examplesFiltered) {
-      const p = (e.pos || "").trim() || "(unspecified)";
+      const p = e.normalizedPos || "(unspecified)";
       map.set(p, (map.get(p) ?? 0) + 1);
       total += 1;
     }
 
     return { map, total };
-  }, [entries, bohairicOnly, query, examplesOnly]);
+  }, [entries, bohairicOnly, deferredQuery, examplesOnly]);
+
+  const visibleResults = useMemo(
+    () => filtered.slice(0, resultsLimit),
+    [filtered, resultsLimit]
+  );
+
+  const hiddenResultsCount = filtered.length - visibleResults.length;
 
   const totalShown = filtered.length;
   const totalAll = posCounts.total;
@@ -760,7 +783,7 @@ export default function DictionaryPage() {
         </div>
 
         <div className="mt-6 space-y-4">
-          {filtered.map((e, idx) => (
+          {visibleResults.map((e, idx) => (
             <div
               key={`${e.dialect}-${e.lemma}-${e.pos}-${idx}`}
               className="rounded-3xl border border-[var(--border-color)] bg-[var(--surface-1)] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
@@ -850,7 +873,7 @@ export default function DictionaryPage() {
                 </div>
               ) : null}
 
-              {hasExamples(e) ? (
+              {e.hasExamples ? (
                 <div className="mt-4 text-sm text-[var(--text-muted)]">
                   <span className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-xs text-[var(--text-muted)]">
                     Includes examples
@@ -859,6 +882,19 @@ export default function DictionaryPage() {
               ) : null}
             </div>
           ))}
+
+          {hiddenResultsCount > 0 ? (
+            <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4 text-center text-sm text-[var(--text-muted)]">
+              Showing {visibleResults.length} of {filtered.length} matches.
+              <button
+                type="button"
+                onClick={() => setResultsLimit((current) => current + 80)}
+                className="ml-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-1 text-[var(--text-color)] hover:bg-[var(--surface-1)]"
+              >
+                Show 80 more
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
