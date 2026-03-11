@@ -94,6 +94,22 @@ export default function Page() {
         >
           Dictionary →
         </Link>
+
+
+        <Link
+          href="/translator"
+          style={{
+            display: "inline-block",
+            padding: "12px 18px",
+            borderRadius: 12,
+            border: "1px solid var(--border-color)",
+            color: "var(--text-color)",
+            fontWeight: 700,
+            textDecoration: "none",
+          }}
+        >
+          Translator →
+        </Link>
       </div>
 
       <div
