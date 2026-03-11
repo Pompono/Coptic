@@ -7,16 +7,28 @@ import {
   COPTIC_FONT_STORAGE_KEY,
   type CopticFontMode,
 } from "./CopticFontPreference";
+import { applyThemeMode, THEME_STORAGE_KEY, type ThemeMode } from "./ThemePreference";
 
 export default function Page() {
   const [fontMode, setFontMode] = useState<CopticFontMode>("unicode");
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
 
   useEffect(() => {
-    const saved = localStorage.getItem(COPTIC_FONT_STORAGE_KEY);
-    const mode: CopticFontMode = saved === "avva" ? "avva" : "unicode";
-    setFontMode(mode);
-    applyCopticFontMode(mode);
-  }, []);
+        const savedFont = localStorage.getItem(COPTIC_FONT_STORAGE_KEY);
+    const font: CopticFontMode = savedFont === "avva" ? "avva" : "unicode";
+    setFontMode(font);
+    applyCopticFontMode(font);
+
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    const theme: ThemeMode =
+      savedTheme === "dark" || savedTheme === "light"
+        ? savedTheme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+    setThemeMode(theme);
+    applyThemeMode(theme);
+      }, []);
 
   const onToggleFont = (nextMode: CopticFontMode) => {
     setFontMode(nextMode);
@@ -24,14 +36,20 @@ export default function Page() {
     applyCopticFontMode(nextMode);
   };
 
+  const onToggleTheme = (nextMode: ThemeMode) => {
+    setThemeMode(nextMode);
+    localStorage.setItem(THEME_STORAGE_KEY, nextMode);
+    applyThemeMode(nextMode);
+  };
+
   const toggleButtonStyle = (active: boolean) => ({
     minWidth: 64,
     padding: "6px 10px",
     border: "none",
     cursor: "pointer",
-    background: active ? "white" : "transparent",
-    color: active ? "black" : "white",
-    fontWeight: 700,
+        background: active ? "var(--toggle-active-bg)" : "transparent",
+    color: active ? "var(--toggle-active-text)" : "var(--text-color)",
+        fontWeight: 700,
     fontSize: 12,
     lineHeight: 1.2,
     textAlign: "center" as const,
@@ -53,9 +71,9 @@ export default function Page() {
             display: "inline-block",
             padding: "12px 18px",
             borderRadius: 12,
-            background: "white",
-            color: "black",
-            fontWeight: 700,
+                        background: "var(--accent-color)",
+            color: "var(--accent-contrast-color)",
+                        fontWeight: 700,
             textDecoration: "none",
           }}
         >
@@ -68,8 +86,8 @@ export default function Page() {
             display: "inline-block",
             padding: "12px 18px",
             borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.2)",
-            color: "white",
+                        border: "1px solid var(--border-color)",
+            color: "var(--text-color)",
             fontWeight: 700,
             textDecoration: "none",
           }}
@@ -86,31 +104,51 @@ export default function Page() {
           zIndex: 20,
           display: "inline-flex",
           alignItems: "center",
-          gap: 8,
-          border: "1px solid rgba(255,255,255,0.25)",
+                    gap: 10,
+          border: "1px solid var(--border-color)",
           borderRadius: 10,
           padding: "6px 8px",
-          background: "rgba(0,0,0,0.75)",
+                    background: "var(--panel-bg)",
           backdropFilter: "blur(2px)",
         }}
-        aria-label="Coptic font toggle"
       >
-        <span style={{ fontSize: 12, opacity: 0.9, whiteSpace: "nowrap" }}>Coptic Font</span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }} aria-label="Theme toggle">
+          <span style={{ fontSize: 12, opacity: 0.9, whiteSpace: "nowrap" }}>Theme</span>
+          <div
+            style={{
+              display: "inline-flex",
+              border: "1px solid var(--border-color)",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            <button type="button" onClick={() => onToggleTheme("light")} style={toggleButtonStyle(themeMode === "light")}>
+              Light
+            </button>
+            <button type="button" onClick={() => onToggleTheme("dark")} style={toggleButtonStyle(themeMode === "dark")}>
+              Dark
+            </button>
+          </div>
+        </div>
 
-        <div
-          style={{
-            display: "inline-flex",
-            border: "1px solid rgba(255,255,255,0.25)",
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
-          <button type="button" onClick={() => onToggleFont("unicode")} style={toggleButtonStyle(fontMode === "unicode")}>
-            Standard
-          </button>
-          <button type="button" onClick={() => onToggleFont("avva")} style={toggleButtonStyle(fontMode === "avva")}>
-            New
-          </button>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }} aria-label="Coptic font toggle">
+          <span style={{ fontSize: 12, opacity: 0.9, whiteSpace: "nowrap" }}>Coptic Font</span>
+
+          <div
+            style={{
+              display: "inline-flex",
+              border: "1px solid var(--border-color)",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            <button type="button" onClick={() => onToggleFont("unicode")} style={toggleButtonStyle(fontMode === "unicode")}>
+              Standard
+            </button>
+            <button type="button" onClick={() => onToggleFont("avva")} style={toggleButtonStyle(fontMode === "avva")}>
+              New
+            </button>
+          </div>
         </div>
       </div>
     </main>

@@ -202,11 +202,11 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
 
   if (!lesson) {
     return (
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: 24, color: "white" }}>
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: 24, color: "var(--text-color)" }}>
         <h1 style={{ fontSize: 40, marginBottom: 8 }}>Lesson not found</h1>
         <p style={{ opacity: 0.85 }}>That lesson id doesn’t exist.</p>
         <p style={{ marginTop: 14 }}>
-          <Link href="/learn" style={{ color: "white" }}>
+          <Link href="/learn" style={{ color: "var(--text-color)" }}>
             ← Back to Learn
           </Link>
         </p>
@@ -342,7 +342,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         maxWidth: 900,
         margin: "0 auto",
         padding: 24,
-        color: "white",
+        color: "var(--text-color)",
         paddingBottom: isMobileViewport ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
       }}
     >
@@ -351,7 +351,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           <div style={{ opacity: 0.85, marginBottom: 6 }}>{lesson.title}</div>
           <h1 style={{ fontSize: 28, margin: 0 }}>Step {stepIndex + 1}</h1>
         </div>
-        <Link href="/learn" style={{ color: "white" }}>
+        <Link href="/learn" style={{ color: "var(--text-color)" }}>
           ← Back
         </Link>
       </div>
@@ -377,11 +377,11 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           width: "100%",
           padding: 14,
           borderRadius: 12,
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.12)",
+          background: "var(--surface-1)",
+          border: "1px solid var(--border-color)",
           minHeight: 56,
           fontSize: 26,
-          color: "white",
+          color: "var(--text-color)",
           outline: "none",
           fontFamily: "var(--coptic-font-family)",
           fontWeight: 500,
@@ -394,8 +394,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           style={{
             padding: "10px 14px",
             borderRadius: 12,
-            background: "white",
-            color: "black",
+            background: "var(--accent-color)",
+            color: "var(--accent-contrast-color)",
             fontWeight: 800,
             border: "none",
             cursor: "pointer",
@@ -414,10 +414,10 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           style={{
             padding: "10px 14px",
             borderRadius: 12,
-            background: "rgba(255,255,255,0.10)",
-            color: "white",
+            background: "var(--surface-2)",
+            color: "var(--text-color)",
             fontWeight: 700,
-            border: "1px solid rgba(255,255,255,0.18)",
+            border: "1px solid var(--border-color)",
             cursor: "pointer",
           }}
         >
@@ -440,10 +440,10 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
             style={{
               padding: "10px 14px",
               borderRadius: 12,
-              background: "rgba(255,255,255,0.10)",
-              color: "white",
+              background: "var(--surface-2)",
+              color: "var(--text-color)",
               fontWeight: 800,
-              border: "1px solid rgba(255,255,255,0.18)",
+              border: "1px solid var(--border-color)",
               cursor: "pointer",
             }}
           >
@@ -461,8 +461,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           right: isMobileViewport ? 0 : undefined,
           bottom: isMobileViewport ? 0 : undefined,
           zIndex: isMobileViewport ? 50 : undefined,
-          background: isMobileViewport ? "rgba(6,6,7,0.96)" : undefined,
-          borderTop: isMobileViewport ? "1px solid rgba(255,255,255,0.12)" : undefined,
+          background: isMobileViewport ? "var(--kb-shell)" : undefined,
+          borderTop: isMobileViewport ? "1px solid var(--kb-border)" : undefined,
           backdropFilter: isMobileViewport ? "blur(10px)" : undefined,
           padding: isMobileViewport ? "10px 10px calc(8px + env(safe-area-inset-bottom, 0px))" : undefined,
         }}
@@ -471,8 +471,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           style={{
             padding: 12,
             borderRadius: isMobileViewport ? 14 : 16,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.10)",
+            background: "var(--kb-panel)",
+            border: "1px solid var(--kb-border)",
             maxWidth: isMobileViewport ? "100%" : undefined,
           }}
         >
@@ -496,8 +496,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
 
                 const flex = isSpace ? 5 : isReturn ? 2.2 : isBackspace || isShiftKey ? 1.6 : obj ? 1.4 : 1;
 
-                const shiftKeyBg = shiftActive ? "white" : "rgba(255,255,255,0.10)";
-                const shiftKeyFg = shiftActive ? "black" : "white";
+                const shiftKeyBg = shiftActive ? "var(--accent-color)" : "var(--kb-key)";
+                const shiftKeyFg = shiftActive ? "var(--accent-contrast-color)" : "var(--kb-text)";
 
                 return (
                   <button
@@ -512,12 +512,12 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
                       background: isShiftKey
                         ? shiftKeyBg
                         : obj?.key === "return"
-                        ? "rgba(255,255,255,0.18)"
+                        ? "var(--kb-key-return)"
                         : obj?.key === "toNumbers" || obj?.key === "toSymbols" || obj?.key === "toABC"
-                        ? "rgba(255,255,255,0.14)"
-                        : "rgba(255,255,255,0.10)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: isShiftKey ? shiftKeyFg : "white",
+                        ? "var(--kb-key-alt)"
+                         : "var(--kb-key)",
+                      border: "1px solid var(--kb-border)",
+                      color: isShiftKey ? shiftKeyFg : "var(--kb-text)",
                       fontSize: isMobileViewport ? 18 : 20,
                       fontWeight: 700,
                       fontFamily: "var(--coptic-font-family)",
@@ -543,7 +543,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
                               width: 18,
                               height: 3,
                               borderRadius: 3,
-                              background: "black",
+                              background: "var(--accent-contrast-color)",
                               opacity: 0.9,
                             }}
                           />

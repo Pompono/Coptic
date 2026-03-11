@@ -19,7 +19,7 @@ export default async function LessonPage({
           maxWidth: 900,
           margin: "0 auto",
           padding: 24,
-          color: "white",
+          color: "var(--text-color)",
         }}
       >
         <h1 style={{ fontSize: 40, marginBottom: 8 }}>Lesson not found</h1>
@@ -40,8 +40,8 @@ export default async function LessonPage({
               display: "inline-block",
               padding: "8px 12px",
               borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.25)",
-              color: "white",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-color)",
               textDecoration: "none",
               fontWeight: 700,
             }}

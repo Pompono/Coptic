@@ -117,12 +117,12 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
   }, [entries, lemma, bohairicOnly]);
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-[var(--bg-color)] text-[var(--text-color)]">
       <div className="mx-auto max-w-3xl px-5 py-8">
         <div className="flex items-center justify-between gap-4">
           <Link
             href="/dictionary"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--surface-2)]"
           >
             ← Back
           </Link>
@@ -134,14 +134,14 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
               "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
               bohairicOnly
                 ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                : "border-white/15 bg-white/5 text-white/80 hover:bg-white/10",
+                : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
             ].join(" ")}
             aria-pressed={bohairicOnly}
           >
             <span
               className={[
                 "h-2.5 w-2.5 rounded-full",
-                bohairicOnly ? "bg-emerald-300" : "bg-white/30",
+                bohairicOnly ? "bg-emerald-300" : "bg-[var(--text-soft)]",
               ].join(" ")}
             />
             Bohairic-only
@@ -151,24 +151,24 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
         <h1 className="coptic-text mt-7 text-4xl font-semibold tracking-tight">{lemma}</h1>
 
         {state === "loading" ? (
-          <p className="mt-4 text-white/60">Loading…</p>
+          <p className="mt-4 text-[var(--text-muted)]">Loading…</p>
         ) : state === "error" ? (
           <p className="mt-4 text-red-300">Failed to load dictionary files.</p>
         ) : matches.length === 0 ? (
-          <p className="mt-4 text-white/60">No entries found for this lemma.</p>
+          <p className="mt-4 text-[var(--text-muted)]">No entries found for this lemma.</p>
         ) : (
           <div className="mt-6 space-y-4">
             {matches.map((e, idx) => (
               <div
                 key={`${e.dialect}-${e.lemma}-${e.pos}-${idx}`}
-                className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
+                className="rounded-3xl border border-[var(--border-color)] bg-[var(--surface-1)] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     {e.forms.length > 1 && (
-                      <div className="text-sm text-white/55">
+                      <div className="text-sm text-[var(--text-muted)]">
                         Forms:{" "}
-                        <span className="coptic-text text-white/70">
+                        <span className="coptic-text text-[var(--text-muted)]">
                           {e.forms.filter((x) => x !== e.lemma).join(", ")}
                         </span>
                       </div>
@@ -180,26 +180,26 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
                           "rounded-full border px-3 py-1 text-xs",
                           e.dialect === "boh"
                             ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                            : "border-white/15 bg-white/5 text-white/70",
+                            : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)]",
                         ].join(" ")}
                       >
                         {e.dialect === "boh" ? "Bohairic" : "Unknown"}
                       </span>
 
                       {e.pos ? (
-                        <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
+                        <span className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-xs text-[var(--text-muted)]">
                           {e.pos}
                         </span>
                       ) : null}
                     </div>
 
-                    <div className="mt-2 text-sm text-white/65">
+                    <div className="mt-2 text-sm text-[var(--text-muted)]">
                       {e.tag ? <span className="mr-3">Tag: {e.tag}</span> : null}
                       {e.greek ? <span>Greek: {e.greek}</span> : null}
                       {e.entryUrl ? (
                         <a
                           href={e.entryUrl}
-                          className="ml-3 text-white/70 underline decoration-white/30 underline-offset-4 hover:text-white"
+                          className="ml-3 text-[var(--text-muted)] underline decoration-[var(--text-muted)] underline-offset-4 hover:text-white"
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -212,31 +212,31 @@ export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
 
                 <div className="mt-4">
                   {e.gloss.length ? (
-                    <ul className="list-disc space-y-1 pl-5 text-white/85">
+                    <ul className="list-disc space-y-1 pl-5 text-[var(--text-muted)]">
                       {e.gloss.map((g, i) => (
                         <li key={i}>{g}</li>
                       ))}
                     </ul>
                   ) : (
-                    <div className="text-sm text-white/45">No gloss.</div>
+                    <div className="text-sm text-[var(--text-muted)]">No gloss.</div>
                   )}
                 </div>
 
                 {e.examples && e.examples.length > 0 ? (
                   <div className="mt-5">
-                    <div className="text-sm font-semibold text-white/80">
+                    <div className="text-sm font-semibold text-[var(--text-muted)]">
                       Examples
                     </div>
                     <div className="mt-3 space-y-3">
                       {e.examples.slice(0, 5).map((ex, i) => (
                         <div
                           key={i}
-                          className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                          className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4"
                         >
-                          <div className="coptic-text text-white/90">{ex.sentence}</div>
-                          <div className="mt-2 text-white/65">{ex.translation}</div>
+                          <div className="coptic-text text-[var(--text-color)]">{ex.sentence}</div>
+                          <div className="mt-2 text-[var(--text-muted)]">{ex.translation}</div>
                           {ex.source ? (
-                            <div className="mt-2 text-xs text-white/45">
+                            <div className="mt-2 text-xs text-[var(--text-soft)]">
                               {ex.source}
                             </div>
                           ) : null}

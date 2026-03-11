@@ -12,6 +12,52 @@
 
 :root {
   --coptic-font-family: "Noto Sans Coptic", "Segoe UI Symbol", "Arial Unicode MS", serif;
+
+  /* Light theme (default) */
+  --bg-color: #dcd8c8;
+  --text-color: #2b4160;
+  --text-muted: rgba(43, 65, 96, 0.82);
+  --text-soft: rgba(43, 65, 96, 0.58);
+  --accent-color: #2b4160;
+  --accent-contrast-color: #dcd8c8;
+  --border-color: rgba(43, 65, 96, 0.34);
+  --surface-1: rgba(255, 255, 255, 0.16);
+  --surface-2: rgba(43, 65, 96, 0.1);
+  --panel-bg: rgba(220, 216, 200, 0.94);
+  --toggle-active-bg: #2b4160;
+  --toggle-active-text: #dcd8c8;
+
+  /* Keyboard (light mode) */
+  --kb-shell: rgba(215, 211, 197, 0.96);
+  --kb-panel: rgba(224, 221, 213, 0.96);
+  --kb-key: #e1dfdc;
+  --kb-key-alt: #e6e4e1;
+  --kb-key-return: #bfc2c7;
+  --kb-border: rgba(43, 65, 96, 0.22);
+  --kb-text: #2b4160;
+}
+
+:root[data-theme="dark"] {
+  --bg-color: #000;
+  --text-color: #fff;
+  --text-muted: rgba(255, 255, 255, 0.75);
+  --text-soft: rgba(255, 255, 255, 0.5);
+  --accent-color: #fff;
+  --accent-contrast-color: #000;
+  --border-color: rgba(255, 255, 255, 0.25);
+  --surface-1: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.12);
+  --panel-bg: rgba(0, 0, 0, 0.75);
+  --toggle-active-bg: #fff;
+  --toggle-active-text: #000;
+
+  --kb-shell: rgba(6, 6, 7, 0.96);
+  --kb-panel: rgba(255, 255, 255, 0.05);
+  --kb-key: rgba(255, 255, 255, 0.1);
+  --kb-key-alt: rgba(255, 255, 255, 0.14);
+  --kb-key-return: rgba(255, 255, 255, 0.18);
+  --kb-border: rgba(255, 255, 255, 0.12);
+  --kb-text: #fff;
 }
 
 :root[data-coptic-font="avva"] {
@@ -28,13 +74,12 @@ button.coptic-text {
   font-family: var(--coptic-font-family);
 }
 
-/* Optional: nice defaults */
 html,
 body {
   height: 100%;
 }
 
 body {
-  background: #000;
-  color: #fff;
+   background: var(--bg-color);
+  color: var(--text-color);
 }

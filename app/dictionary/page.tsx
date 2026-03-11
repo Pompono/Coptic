@@ -472,7 +472,7 @@ export default function DictionaryPage() {
 
   return (
     <main
-      className="min-h-screen bg-black text-white"
+      className="min-h-screen bg-[var(--bg-color)] text-[var(--text-color)]"
       style={{
         paddingBottom:
           isMobileViewport && showKeyboard
@@ -492,7 +492,7 @@ export default function DictionaryPage() {
         <div className="flex items-center justify-between gap-4">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--surface-2)]"
           >
             ← Home
           </Link>
@@ -504,14 +504,14 @@ export default function DictionaryPage() {
               "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
               bohairicOnly
                 ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                : "border-white/15 bg-white/5 text-white/80 hover:bg-white/10",
+                : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
             ].join(" ")}
             aria-pressed={bohairicOnly}
           >
             <span
               className={[
                 "h-2.5 w-2.5 rounded-full",
-                bohairicOnly ? "bg-emerald-300" : "bg-white/30",
+                bohairicOnly ? "bg-emerald-300" : "bg-[var(--text-soft)]",
               ].join(" ")}
             />
             Bohairic-only
@@ -519,29 +519,30 @@ export default function DictionaryPage() {
         </div>
 
         <h1 className="mt-7 text-4xl font-semibold tracking-tight">Coptic Dictionary</h1>
-        <p className="mt-2 text-white/60">Search lemma, forms, or gloss</p>
+        <p className="mt-2 text-[var(--text-muted)]">Search lemma, forms, or gloss</p>
 
         <div className="mt-5 space-y-3">
-          <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/5 px-4 py-3">
-            <span className="text-white/50">🔎</span>
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-3">
+            <span className="text-[var(--text-muted)]">🔎</span>
             <input
               ref={queryInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onPointerDown={hideKeyboardOnManualInputFocus}
               placeholder="Search Coptic or English..."
-              className="coptic-text w-full bg-transparent text-base outline-none placeholder:text-white/35"
+              className="coptic-text w-full bg-transparent text-base outline-none placeholder:text-[var(--text-soft)]"
             />
           </div>
 
           {!isMobileViewport ? (
-          <div className="rounded-2xl border border-white/12 bg-white/5 p-3">
+          <div className="rounded-2xl border border-[var(--kb-border)] p-3"
+            style={{ background: "var(--kb-shell)" }}>
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm text-white/65">Coptic keyboard</span>
+              <span className="text-sm text-[var(--text-muted)]">Coptic keyboard</span>
               <button
                 type="button"
                 onClick={() => setShowKeyboard((v) => !v)}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-white/70 hover:bg-white/10"
+                className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-sm text-[var(--text-muted)] hover:bg-[var(--surface-2)]"
               >
                 {showKeyboard ? "Hide" : "Show"}
               </button>
@@ -552,8 +553,8 @@ export default function DictionaryPage() {
                 style={{
                   padding: 12,
                   borderRadius: 16,
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "var(--kb-panel)",
+                  border: "1px solid var(--kb-border)",
                 }}
               >
                 {page.map((row, rIdx) => (
@@ -584,8 +585,8 @@ export default function DictionaryPage() {
                         ? 1.4
                         : 1;
 
-                      const shiftKeyBg = shiftActive ? "white" : "rgba(255,255,255,0.10)";
-                      const shiftKeyFg = shiftActive ? "black" : "white";
+                      const shiftKeyBg = shiftActive ? "var(--accent-color)" : "var(--kb-key)";
+                      const shiftKeyFg = shiftActive ? "var(--accent-contrast-color)" : "var(--kb-text)";
 
                       return (
                         <button
@@ -600,12 +601,12 @@ export default function DictionaryPage() {
                             background: isShiftKey
                               ? shiftKeyBg
                               : obj?.key === "return"
-                              ? "rgba(255,255,255,0.18)"
+                              ? "var(--kb-key-return)"
                               : obj?.key === "toNumbers" || obj?.key === "toSymbols" || obj?.key === "toABC"
-                              ? "rgba(255,255,255,0.14)"
-                              : "rgba(255,255,255,0.10)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            color: isShiftKey ? shiftKeyFg : "white",
+                              ? "var(--kb-key-alt)"
+                              : "var(--kb-key)",
+                            border: "1px solid var(--kb-border)",
+                            color: isShiftKey ? shiftKeyFg : "var(--kb-text)",
                             fontSize: 20,
                             fontWeight: 700,
                             fontFamily: "var(--coptic-font-family)",
@@ -631,7 +632,7 @@ export default function DictionaryPage() {
                                     width: 18,
                                     height: 3,
                                     borderRadius: 3,
-                                    background: "black",
+                                    background: "var(--accent-contrast-color)",
                                     opacity: 0.9,
                                   }}
                                 />
@@ -659,24 +660,24 @@ export default function DictionaryPage() {
               <button
                 type="button"
                 onClick={() => setPosOpen((v) => !v)}
-                className="flex w-full items-center rounded-xl border border-white/25 bg-transparent px-4 py-2"
+                className="flex w-full items-center rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2"
                 aria-expanded={posOpen}
                 aria-haspopup="listbox"
               >
-                <span className="text-sm text-white/60">POS</span>
-                <span className="ml-4 w-full text-left text-sm text-white">
+                <span className="text-sm text-[var(--text-muted)]">POS</span>
+                <span className="ml-4 w-full text-left text-sm text-[var(--text-color)]">
                   {posFilter === "All" ? "All parts of speech" : posFilter}
                 </span>
-                <span className="ml-3 text-xs text-white/45">▾</span>
+                <span className="ml-3 text-xs text-[var(--text-soft)]">▾</span>
               </button>
 
               {posOpen ? (
-                <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-white/25 bg-black p-3 shadow-[0_12px_28px_rgba(0,0,0,0.7)]">
+                <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.7)]">
                   <input
                     value={posSearch}
                     onChange={(e) => setPosSearch(e.target.value)}
                     placeholder="Filter parts of speech..."
-                    className="mb-3 w-full rounded-xl border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-white/35"
+                    className="mb-3 w-full rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
                   />
 
                   <div className="max-h-80 overflow-auto pr-1">
@@ -692,12 +693,12 @@ export default function DictionaryPage() {
                             setPosFilter(p);
                             setPosOpen(false);
                           }}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-white/90 hover:bg-white/10"
+                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[var(--text-color)] hover:bg-[var(--surface-2)]"
                           role="option"
                           aria-selected={isSelected}
                         >
                           <span className="text-sm">{p === "All" ? "All parts of speech" : p}</span>
-                          <span className="ml-3 text-sm text-white/45">{isSelected ? "✓" : count}</span>
+                          <span className="ml-3 text-sm text-[var(--text-soft)]">{isSelected ? "✓" : count}</span>
                         </button>
                       );
                     })}
@@ -709,13 +710,13 @@ export default function DictionaryPage() {
             <button
               type="button"
               onClick={() => setExamplesOnly((v) => !v)}
-              className="inline-flex items-center gap-3 rounded-xl border border-white/25 bg-transparent px-4 py-2 text-sm text-white/90"
+              className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2 text-sm text-[var(--text-color)]"
               aria-pressed={examplesOnly}
             >
               <span
                 className={[
                   "relative inline-flex h-7 w-12 rounded-full transition-colors",
-                  examplesOnly ? "bg-white/40" : "bg-white/25",
+                  examplesOnly ? "bg-[var(--text-muted)]" : "bg-white/25",
                 ].join(" ")}
               >
                 <span
@@ -728,7 +729,7 @@ export default function DictionaryPage() {
               Has examples
             </button>
 
-            <div className="text-sm text-white/55">
+            <div className="text-sm text-[var(--text-muted)]">
               {loadState === "loading" ? (
                 <span>Loading…</span>
               ) : loadState === "error" ? (
@@ -736,7 +737,7 @@ export default function DictionaryPage() {
               ) : (
                 <span>
                   {totalShown} shown • {totalAll} total •{" "}
-                  <span className="text-white/70">
+                  <span className="text-[var(--text-muted)]">
                     Badge: <b>Bohairic</b> = verified Bohairic; <b>Unknown</b> = dialect not guaranteed.
                   </span>
                 </span>
@@ -749,16 +750,16 @@ export default function DictionaryPage() {
           {filtered.map((e, idx) => (
             <div
               key={`${e.dialect}-${e.lemma}-${e.pos}-${idx}`}
-              className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
+              className="rounded-3xl border border-[var(--border-color)] bg-[var(--surface-1)] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="coptic-text text-2xl font-semibold tracking-tight">{e.lemma}</div>
 
                   {e.forms.length > 1 && (
-                    <div className="mt-1 text-sm text-white/55">
+                    <div className="mt-1 text-sm text-[var(--text-muted)]">
                       Forms:{" "}
-                      <span className="coptic-text text-white/70">
+                      <span className="coptic-text text-[var(--text-muted)]">
                         {e.forms.filter((x) => x !== e.lemma).join(", ")}
                       </span>
                     </div>
@@ -770,26 +771,26 @@ export default function DictionaryPage() {
                         "rounded-full border px-3 py-1 text-xs",
                         e.dialect === "boh"
                           ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                          : "border-white/15 bg-white/5 text-white/70",
+                          : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)]",
                       ].join(" ")}
                     >
                       {e.dialect === "boh" ? "Bohairic" : "Unknown"}
                     </span>
 
                     {e.pos ? (
-                      <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
+                      <span className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-xs text-[var(--text-muted)]">
                         {e.pos}
                       </span>
                     ) : null}
                   </div>
 
-                  <div className="mt-2 text-sm text-white/65">
+                  <div className="mt-2 text-sm text-[var(--text-muted)]">
                     {e.tag ? <span className="mr-3">Tag: {e.tag}</span> : null}
                     {e.greek ? <span>Greek: {e.greek}</span> : null}
                     {e.entryUrl ? (
                       <a
                         href={e.entryUrl}
-                        className="ml-3 text-white/70 underline decoration-white/30 underline-offset-4 hover:text-white"
+                        className="ml-3 text-[var(--text-muted)] underline decoration-[var(--text-soft)] underline-offset-4 hover:text-[var(--text-color)]"
                         target="_blank"
                         rel="noreferrer"
                       >
@@ -802,31 +803,31 @@ export default function DictionaryPage() {
 
               <div className="mt-4">
                 {e.gloss.length ? (
-                  <ul className="list-disc space-y-1 pl-5 text-white/85">
+                  <ul className="list-disc space-y-1 pl-5 text-[var(--text-color)]">
                     {e.gloss.map((g, i) => (
                       <li key={i}>{g}</li>
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-sm text-white/45">No gloss.</div>
+                  <div className="text-sm text-[var(--text-soft)]">No gloss.</div>
                 )}
               </div>
 
               {e.examples && e.examples.length > 0 ? (
                 <div className="mt-5">
-                  <div className="text-sm font-semibold text-white/80">
+                  <div className="text-sm font-semibold text-[var(--text-muted)]">
                     Examples
                   </div>
                   <div className="mt-3 space-y-3">
                     {e.examples.slice(0, 5).map((ex, i) => (
                       <div
                         key={i}
-                        className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                        className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] p-4"
                       >
-                        <div className="coptic-text text-white/90">{ex.sentence}</div>
-                        <div className="mt-2 text-white/65">{ex.translation}</div>
+                        <div className="coptic-text text-[var(--text-color)]">{ex.sentence}</div>
+                        <div className="mt-2 text-[var(--text-muted)]">{ex.translation}</div>
                         {ex.source ? (
-                          <div className="mt-2 text-xs text-white/45">
+                          <div className="mt-2 text-xs text-[var(--text-soft)]">
                             {ex.source}
                           </div>
                         ) : null}
@@ -837,8 +838,8 @@ export default function DictionaryPage() {
               ) : null}
 
               {hasExamples(e) ? (
-                <div className="mt-4 text-sm text-white/70">
-                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
+                <div className="mt-4 text-sm text-[var(--text-muted)]">
+                  <span className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-xs text-[var(--text-muted)]">
                     Includes examples
                   </span>
                 </div>
@@ -853,7 +854,7 @@ export default function DictionaryPage() {
           <button
             type="button"
             onClick={() => setShowKeyboard((v) => !v)}
-            className="rounded-full border border-white/20 bg-black/80 px-4 py-2 text-xs font-medium text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur"
           >
             {showKeyboard ? "Hide Coptic keyboard" : "Show Coptic keyboard"}
           </button>
@@ -868,8 +869,8 @@ export default function DictionaryPage() {
             right: 0,
             bottom: 0,
             zIndex: 40,
-            background: "rgba(6,6,7,0.96)",
-            borderTop: "1px solid rgba(255,255,255,0.12)",
+            background: "var(--kb-shell)",
+            borderTop: "1px solid var(--kb-border)",
             backdropFilter: "blur(10px)",
             padding: "10px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
           }}
@@ -878,8 +879,8 @@ export default function DictionaryPage() {
             style={{
               padding: 12,
               borderRadius: 14,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.10)",
+              background: "var(--kb-panel)",
+              border: "1px solid var(--kb-border)",
             }}
           >
             {page.map((row, rIdx) => (
@@ -902,8 +903,8 @@ export default function DictionaryPage() {
 
                   const flex = isSpace ? 5 : isReturn ? 2.2 : isBackspace || isShiftKey ? 1.6 : obj ? 1.4 : 1;
 
-                  const shiftKeyBg = shiftActive ? "white" : "rgba(255,255,255,0.10)";
-                  const shiftKeyFg = shiftActive ? "black" : "white";
+                  const shiftKeyBg = shiftActive ? "var(--accent-color)" : "var(--kb-key)";
+                  const shiftKeyFg = shiftActive ? "var(--accent-contrast-color)" : "var(--kb-text)";
 
                   return (
                     <button
@@ -918,12 +919,12 @@ export default function DictionaryPage() {
                         background: isShiftKey
                           ? shiftKeyBg
                           : obj?.key === "return"
-                          ? "rgba(255,255,255,0.18)"
+                          ? "var(--kb-key-return)"
                           : obj?.key === "toNumbers" || obj?.key === "toSymbols" || obj?.key === "toABC"
-                          ? "rgba(255,255,255,0.14)"
-                          : "rgba(255,255,255,0.10)",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        color: isShiftKey ? shiftKeyFg : "white",
+                          ? "var(--kb-key-alt)"
+                          : "var(--kb-key)",
+                        border: "1px solid var(--kb-border)",
+                        color: isShiftKey ? shiftKeyFg : "var(--kb-text)",
                         fontSize: 18,
                         fontWeight: 700,
                         fontFamily: "var(--coptic-font-family)",
@@ -949,7 +950,7 @@ export default function DictionaryPage() {
                                 width: 18,
                                 height: 3,
                                 borderRadius: 3,
-                                background: "black",
+                                background: "var(--accent-contrast-color)",
                                 opacity: 0.9,
                               }}
                             />
