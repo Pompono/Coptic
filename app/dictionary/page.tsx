@@ -203,6 +203,10 @@ const KB_SYMBOLS: KeyDef[][] = [
 
 export default function DictionaryPage() {
   const [query, setQuery] = useState("");
+  const [translationInput, setTranslationInput] = useState("");
+  const [translations, setTranslations] = useState<string[]>([]);
+  const [translationState, setTranslationState] = useState<"idle" | "loading" | "error">("idle");
+  const [translationError, setTranslationError] = useState("");
   const [bohairicOnly, setBohairicOnly] = useState(false);
   const [posFilter, setPosFilter] = useState("All");
   const [examplesOnly, setExamplesOnly] = useState(false);
@@ -428,6 +432,57 @@ export default function DictionaryPage() {
     setShowKeyboard(false);
   };
 
+  const runTranslation = async () => {
+    const text = translationInput.trim();
+    if (!text) {
+      setTranslationError("Enter English text to translate.");
+      setTranslations([]);
+      setTranslationState("error");
+      return;
+    }
+
+    setTranslationState("loading");
+    setTranslationError("");
+
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const payload = (await res.json()) as {
+        translations?: string[];
+        error?: string;
+        hint?: string;
+        backendUrl?: string;
+      };
+      if (!res.ok) {
+        setTranslations([]);
+        setTranslationState("error");
+
+        const details = [payload.error, payload.hint, payload.backendUrl ? `Backend: ${payload.backendUrl}` : ""]
+          .filter(Boolean)
+          .join(" ");
+
+        setTranslationError(details || "Translation request failed.");
+        return;
+      }
+
+      const next = Array.isArray(payload.translations) ? payload.translations : [];
+      setTranslations(next);
+      setTranslationState("idle");
+
+      if (next.length > 0) {
+        setQuery(next[0]);
+      }
+    } catch {
+      setTranslations([]);
+      setTranslationState("error");
+      setTranslationError("Could not reach translation service.");
+    }
+  };
+
   const handleKey = (k: KeyDef) => {
     if (isKeyObj(k)) {
       switch (k.key) {
@@ -522,8 +577,49 @@ export default function DictionaryPage() {
         <p className="mt-2 text-[var(--text-muted)]">Search lemma, forms, or gloss</p>
 
         <div className="mt-5 space-y-3">
+          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4">
+            <p className="text-sm font-medium text-[var(--text-color)]">English → Coptic translator (experimental)</p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Uses your configured Coptic translator backend, then drops top output into dictionary search.</p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                value={translationInput}
+                onChange={(e) => setTranslationInput(e.target.value)}
+                placeholder="Type English text..."
+                className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
+              />
+              <button
+                type="button"
+                onClick={runTranslation}
+                disabled={translationState === "loading"}
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text-color)] hover:bg-[var(--surface-1)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {translationState === "loading" ? "Translating…" : "Translate"}
+              </button>
+            </div>
+
+            {translationState === "error" ? (
+              <p className="mt-2 text-xs text-rose-300">{translationError}</p>
+            ) : null}
+
+            {translations.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {translations.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setQuery(t)}
+                    className="coptic-text rounded-full border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-1.5 text-sm text-[var(--text-color)] hover:bg-[var(--surface-1)]"
+                    title="Use in dictionary search"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-3">
-            <span className="text-[var(--text-muted)]">🔎</span>
             <input
               ref={queryInputRef}
               value={query}
