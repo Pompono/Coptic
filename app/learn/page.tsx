@@ -7,23 +7,28 @@ export default function LearnIndexPage() {
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <h1 style={{ fontSize: 40, marginBottom: 8 }}>Learn</h1>
+      <div style={{ marginBottom: 14 }}>
         <Link
           href="/"
           style={{
-            display: "inline-block",
-            padding: "8px 12px",
-            borderRadius: 10,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 16px",
+            borderRadius: 999,
             border: "1px solid var(--border-color)",
+            background: "var(--surface-1)",
             color: "var(--text-color)",
             textDecoration: "none",
-            fontWeight: 700,
+            fontSize: 16,
+            fontWeight: 500,
           }}
         >
-          ← Back
+          ← Home
         </Link>
       </div>
+
+      <h1 style={{ fontSize: 40, marginBottom: 8 }}>Learn</h1>
 
       {first ? (
         <Link

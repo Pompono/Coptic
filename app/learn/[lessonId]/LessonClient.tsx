@@ -346,14 +346,30 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         paddingBottom: isMobileViewport ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <div>
-          <div style={{ opacity: 0.85, marginBottom: 6 }}>{lesson.title}</div>
-          <h1 style={{ fontSize: 28, margin: 0 }}>Step {stepIndex + 1}</h1>
-        </div>
-        <Link href="/learn" style={{ color: "var(--text-color)" }}>
+      <div style={{ marginBottom: 14 }}>
+        <Link
+          href="/learn"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 16px",
+            borderRadius: 999,
+            border: "1px solid var(--border-color)",
+            background: "var(--surface-1)",
+            color: "var(--text-color)",
+            textDecoration: "none",
+            fontSize: 16,
+            fontWeight: 500,
+          }}
+        >
           ← Back
         </Link>
+      </div>
+
+      <div>
+        <div style={{ opacity: 0.85, marginBottom: 6 }}>{lesson.title}</div>
+        <h1 style={{ fontSize: 28, margin: 0 }}>Step {stepIndex + 1}</h1>
       </div>
 
       <p style={{ marginTop: 18, fontSize: 18 }}>{step.prompt}</p>
