@@ -83,3 +83,28 @@ body {
    background: var(--bg-color);
   color: var(--text-color);
 }
+.pos-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-soft) transparent;
+}
+
+.pos-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pos-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pos-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+}
+
+.pos-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-soft);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}

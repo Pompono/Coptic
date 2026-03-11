@@ -659,7 +659,7 @@ export default function DictionaryPage() {
               <button
                 type="button"
                 onClick={() => setPosOpen((v) => !v)}
-                className="flex w-full items-center rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2"
+                className="flex w-full items-center rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2"
                 aria-expanded={posOpen}
                 aria-haspopup="listbox"
               >
@@ -671,15 +671,15 @@ export default function DictionaryPage() {
               </button>
 
               {posOpen ? (
-                <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.7)]">
+                <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border-color)] bg-[var(--panel-bg)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.7)] backdrop-blur">
                   <input
                     value={posSearch}
                     onChange={(e) => setPosSearch(e.target.value)}
                     placeholder="Filter parts of speech..."
-                    className="mb-3 w-full rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
+                    className="mb-3 w-full rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
                   />
 
-                  <div className="max-h-80 overflow-auto pr-1">
+                  <div className="pos-scrollbar max-h-80 space-y-2 overflow-auto pr-1">
                     {displayedPosOptions.map((p) => {
                       const isSelected = posFilter === p;
                       const count = p === "All" ? totalAll : posCounts.map.get(p) ?? 0;
@@ -692,12 +692,26 @@ export default function DictionaryPage() {
                             setPosFilter(p);
                             setPosOpen(false);
                           }}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[var(--text-color)] hover:bg-[var(--surface-2)]"
+                          className={[
+                            "group flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition",
+                            isSelected
+                              ? "border-[var(--text-soft)] bg-[var(--surface-2)]"
+                              : "border-transparent bg-[var(--surface-1)] hover:border-[var(--border-color)] hover:bg-[var(--surface-2)]",
+                          ].join(" ")}
                           role="option"
                           aria-selected={isSelected}
                         >
-                          <span className="text-sm">{p === "All" ? "All parts of speech" : p}</span>
-                          <span className="ml-3 text-sm text-[var(--text-soft)]">{isSelected ? "✓" : count}</span>
+                          <span className="text-sm text-[var(--text-color)]">{p === "All" ? "All parts of speech" : p}</span>
+                          <span
+                            className={[
+                              "ml-3 inline-flex min-w-8 items-center justify-center rounded-full border px-2 py-0.5 text-xs",
+                              isSelected
+                                ? "border-[var(--text-soft)] bg-[var(--surface-2)] text-[var(--text-color)]"
+                                : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-soft)] group-hover:text-[var(--text-color)]",
+                            ].join(" ")}
+                          >
+                            {isSelected ? "Selected" : count}
+                          </span>
                         </button>
                       );
                     })}
