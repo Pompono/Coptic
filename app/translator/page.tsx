@@ -103,6 +103,11 @@ export default function TranslatorPage() {
   const [translationError, setTranslationError] = useState("");
   const [translationOutput, setTranslationOutput] = useState("");
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [englishInput, setEnglishInput] = useState("");
+  const [englishState, setEnglishState] = useState<"idle" | "loading" | "error">("idle");
+  const [englishError, setEnglishError] = useState("");
+  const [englishOutput, setEnglishOutput] = useState("");
+  const [englishConfidence, setEnglishConfidence] = useState<number | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<PageMode>("ABC");
@@ -236,6 +241,49 @@ export default function TranslatorPage() {
     }
   };
 
+  const runEnglishToCopticTranslation = async () => {
+    const text = englishInput.trim();
+    if (!text) {
+      setEnglishOutput("");
+      setEnglishConfidence(null);
+      setEnglishError("Enter English text to translate.");
+      setEnglishState("error");
+      return;
+    }
+
+    setEnglishState("loading");
+    setEnglishError("");
+
+    try {
+      const res = await fetch("/api/translate/en-coptic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, dialect: translatorDialect, includeConfidence: true }),
+      });
+
+      const payload = (await res.json()) as TranslationPayload;
+      if (!res.ok) {
+        setEnglishOutput("");
+        setEnglishConfidence(null);
+        setEnglishState("error");
+
+        const details = [payload.error, payload.details].filter(Boolean).join(" ");
+        setEnglishError(details || "Translation request failed.");
+        return;
+      }
+
+      const top = typeof payload.translation === "string" ? payload.translation.trim() : "";
+      setEnglishOutput(top);
+      setEnglishConfidence(typeof payload.confidence === "number" ? payload.confidence : null);
+      setEnglishState("idle");
+    } catch {
+      setEnglishOutput("");
+      setEnglishConfidence(null);
+      setEnglishState("error");
+      setEnglishError("Could not reach translation service.");
+    }
+  };
+
   const dialectLabel = translatorDialect === "bohairic" ? "Bohairic" : "Sahidic";
 
   return (
@@ -338,6 +386,42 @@ export default function TranslatorPage() {
           ) : null}
         </div>
       </div>
+
+        <div className="mt-5 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4">
+          <h2 className="text-xl font-semibold tracking-tight">English → Coptic translator</h2>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Model-backed translation using local inference ({dialectLabel}).
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              value={englishInput}
+              onChange={(e) => setEnglishInput(e.target.value)}
+              placeholder='Type English text...'
+              className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
+            />
+            <button
+              type="button"
+              onClick={runEnglishToCopticTranslation}
+              disabled={englishState === "loading"}
+              className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text-color)] hover:bg-[var(--surface-1)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {englishState === "loading" ? "Translating…" : "Translate"}
+            </button>
+          </div>
+
+          {englishState === "error" ? <p className="mt-3 text-xs text-rose-300">{englishError}</p> : null}
+
+          <div className="mt-4 rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] p-4">
+            <p className="text-xs text-[var(--text-muted)]">Output</p>
+            <p className="coptic-text mt-2 text-lg text-[var(--text-color)]">{englishOutput || "Translation will appear here."}</p>
+            {englishConfidence !== null ? (
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
+                Confidence: {(englishConfidence * 100).toFixed(1)}%
+              </p>
+            ) : null}
+          </div>
+        </div>
 
       {isMobileViewport && showKeyboard ? (
         <div
