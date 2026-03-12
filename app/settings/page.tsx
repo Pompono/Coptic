@@ -64,7 +64,7 @@ export default function SettingsPage() {
       </Link>
 
       <h1 style={{ marginTop: 12, marginBottom: 8, fontSize: 34, fontWeight: 800 }}>Settings</h1>
-      <p style={{ marginBottom: 24, opacity: 0.85 }}>Customize how the app looks and renders Coptic text.</p>
+      <p style={{ marginBottom: 24, opacity: 0.85 }}>Customize the app to fit your needs!</p>
 
       <section
         style={{

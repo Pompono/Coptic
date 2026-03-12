@@ -174,6 +174,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
 
   const [mode, setMode] = useState<PageMode>("ABC");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [showKeyboard, setShowKeyboard] = useState(true);
 
   // shiftMode:
   // - "off" = lowercase
@@ -220,6 +221,11 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
   const check = () => {
     const ok = normalize(typed) === normalize(expected);
     setStatus(ok ? "correct" : "wrong");
+  };
+
+  const hideKeyboardOnManualInputFocus = () => {
+    if (!isMobileViewport || !showKeyboard) return;
+    setShowKeyboard(false);
   };
 
   const next = () => {
@@ -343,7 +349,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         margin: "0 auto",
         padding: 24,
         color: "var(--text-color)",
-        paddingBottom: isMobileViewport ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
+        paddingBottom: isMobileViewport && showKeyboard ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
       }}
     >
       <div style={{ marginBottom: 14 }}>
@@ -384,6 +390,9 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         onKeyDown={(e) => {
           if (e.key === "Enter") check();
         }}
+        onPointerDown={hideKeyboardOnManualInputFocus}
+        readOnly={isMobileViewport && showKeyboard}
+        inputMode={isMobileViewport && showKeyboard ? "none" : "text"}
         placeholder="Type here..."
         autoFocus
         spellCheck={false}
@@ -468,8 +477,29 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         </div>
       ) : null}
 
-      {/* Keyboard */}
-      <div
+      {isMobileViewport && !showKeyboard ? (
+        <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 60 }}>
+          <button
+            type="button"
+            onClick={() => setShowKeyboard(true)}
+            style={{
+              borderRadius: 999,
+              border: "1px solid var(--border-color)",
+              background: "var(--panel-bg)",
+              color: "var(--text-color)",
+              padding: "10px 14px",
+              fontSize: 12,
+              fontWeight: 600,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+            }}
+          >
+            Show Coptic keyboard
+          </button>
+        </div>
+      ) : null}
+
+      {/* Keyboard */} 
+      <div 
         style={{
           marginTop: 18,
           position: isMobileViewport ? "fixed" : "static",
@@ -477,12 +507,31 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           right: isMobileViewport ? 0 : undefined,
           bottom: isMobileViewport ? 0 : undefined,
           zIndex: isMobileViewport ? 50 : undefined,
-          background: isMobileViewport ? "var(--kb-shell)" : undefined,
-          borderTop: isMobileViewport ? "1px solid var(--kb-border)" : undefined,
-          backdropFilter: isMobileViewport ? "blur(10px)" : undefined,
-          padding: isMobileViewport ? "10px 10px calc(8px + env(safe-area-inset-bottom, 0px))" : undefined,
+          padding: isMobileViewport ? "0 10px calc(8px + env(safe-area-inset-bottom, 0px))" : undefined,
+          display: isMobileViewport && !showKeyboard ? "none" : undefined,
         }}
       >
+        {isMobileViewport ? (
+          <div style={{ marginBottom: 8, display: "flex", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={() => setShowKeyboard(false)}
+              style={{
+                borderRadius: 999,
+                border: "1px solid var(--border-color)",
+                background: "var(--panel-bg)",
+                color: "var(--text-color)",
+                fontSize: 14,
+                fontWeight: 600,
+                padding: "8px 16px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+                cursor: "pointer",
+              }}
+            >
+              Hide Coptic keyboard
+            </button>
+          </div>
+        ) : null}
         <div
           style={{
             padding: 12,
@@ -579,6 +628,28 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           ))}
         </div>
       </div>
+
+      {isMobileViewport && !showKeyboard ? (
+        <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 60 }}>
+          <button
+            type="button"
+            onClick={() => setShowKeyboard(true)}
+            style={{
+              borderRadius: 999,
+              border: "1px solid var(--border-color)",
+              background: "var(--panel-bg)",
+              color: "var(--text-color)",
+              fontSize: 14,
+              fontWeight: 600,
+              padding: "8px 16px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+              cursor: "pointer",
+            }}
+          >
+            Show Coptic keyboard
+          </button>
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 22, opacity: 0.55, fontSize: 12 }}>
         Lesson id: {lesson.id} • Step id: {step.id}

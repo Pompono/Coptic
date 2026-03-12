@@ -447,7 +447,7 @@ export default function DictionaryPage() {
   };
 
   const hideKeyboardOnManualInputFocus = () => {
-    if (!isMobileViewport) return;
+    if (!isMobileViewport || !showKeyboard) return;
     setShowKeyboard(false);
   };
 
@@ -551,6 +551,8 @@ export default function DictionaryPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onPointerDown={hideKeyboardOnManualInputFocus}
+              readOnly={isMobileViewport && showKeyboard}
+              inputMode={isMobileViewport && showKeyboard ? "none" : "text"}
               placeholder="Search Coptic or English..."
               className="coptic-text w-full bg-transparent text-base outline-none placeholder:text-[var(--text-soft)]"
             />
@@ -882,7 +884,6 @@ export default function DictionaryPage() {
               ) : null}
             </div>
           ))}
-
           {hiddenResultsCount > 0 ? (
             <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4 text-center text-sm text-[var(--text-muted)]">
               Showing {visibleResults.length} of {filtered.length} matches.
@@ -898,18 +899,6 @@ export default function DictionaryPage() {
         </div>
       </div>
 
-      {isMobileViewport ? (
-        <div className="fixed bottom-4 right-4 z-50">
-          <button
-            type="button"
-            onClick={() => setShowKeyboard((v) => !v)}
-            className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur"
-          >
-            {showKeyboard ? "Hide Coptic keyboard" : "Show Coptic keyboard"}
-          </button>
-        </div>
-      ) : null}
-
       {isMobileViewport && showKeyboard ? (
         <div
           style={{
@@ -918,12 +907,18 @@ export default function DictionaryPage() {
             right: 0,
             bottom: 0,
             zIndex: 40,
-            background: "var(--kb-shell)",
-            borderTop: "1px solid var(--kb-border)",
-            backdropFilter: "blur(10px)",
-            padding: "10px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
+            padding: "0 10px calc(8px + env(safe-area-inset-bottom, 0px))",
           }}
         >
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowKeyboard(false)}
+              className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+            >
+              Hide Coptic keyboard
+            </button>
+          </div>
           <div
             style={{
               padding: 12,
@@ -1018,6 +1013,18 @@ export default function DictionaryPage() {
               </div>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {isMobileViewport && !showKeyboard ? (
+        <div className="fixed bottom-4 right-4 z-50">
+          <button
+            type="button"
+            onClick={() => setShowKeyboard(true)}
+            className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+          >
+            Show Coptic keyboard
+          </button>
         </div>
       ) : null}
 
