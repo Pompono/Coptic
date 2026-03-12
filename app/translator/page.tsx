@@ -28,6 +28,7 @@ type KeyDef =
     };
 
 type PageMode = "ABC" | "NUMBERS" | "SYMBOLS";
+type TranslationDirection = "copticToEnglish" | "englishToCoptic";
 
 const COPTIC_CASE_MAP: Record<string, string> = {
   "Ϧ": "ϧ", "ϧ": "Ϧ", "Ⲁ": "ⲁ", "ⲁ": "Ⲁ", "Ⲃ": "ⲃ", "ⲃ": "Ⲃ", "Ⲅ": "ⲅ", "ⲅ": "Ⲅ",
@@ -97,6 +98,7 @@ const KB_SYMBOLS: KeyDef[][] = [
 ];
 
 export default function TranslatorPage() {
+  const [direction, setDirection] = useState<TranslationDirection>("copticToEnglish");
   const [translationInput, setTranslationInput] = useState("");
   const [translatorDialect, setTranslatorDialect] = useState<"sahidic" | "bohairic">("bohairic");
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "error">("idle");
@@ -285,6 +287,24 @@ export default function TranslatorPage() {
   };
 
   const dialectLabel = translatorDialect === "bohairic" ? "Bohairic" : "Sahidic";
+  const isCopticToEnglish = direction === "copticToEnglish";
+  const currentInput = isCopticToEnglish ? translationInput : englishInput;
+  const currentOutput = isCopticToEnglish ? translationOutput : englishOutput;
+  const currentState = isCopticToEnglish ? translationState : englishState;
+  const currentError = isCopticToEnglish ? translationError : englishError;
+  const currentConfidence = isCopticToEnglish ? confidence : englishConfidence;
+
+  const runCurrentTranslation = () => {
+    if (isCopticToEnglish) {
+      void runTranslation();
+      return;
+    }
+    void runEnglishToCopticTranslation();
+  };
+
+  const handleSwitchDirection = () => {
+    setDirection((current) => (current === "copticToEnglish" ? "englishToCoptic" : "copticToEnglish"));
+  };
 
   return (
     <main
@@ -316,7 +336,9 @@ export default function TranslatorPage() {
         </div>
 
         <h1 className="mt-7 text-4xl font-semibold tracking-tight">Coptic Translator</h1>
-        <p className="mt-2 text-[var(--text-muted)]">Coptic → English translator (local model)</p>
+         <p className="mt-2 text-[var(--text-muted)]">
+          {isCopticToEnglish ? "Coptic → English translator (local model)" : "English → Coptic translator (local model)"}
+        </p>
 
         <div className="mt-5 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4">
           <div className="flex items-center gap-3">
@@ -333,40 +355,57 @@ export default function TranslatorPage() {
             </button>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSwitchDirection}
+              className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--text-color)] hover:bg-[var(--surface-1)]"
+              title="Switch translation direction"
+              aria-label="Switch translation direction"
+            >
+              ⇄
+            </button>
             <input
               ref={inputRef}
-              value={translationInput}
-              onChange={(e) => setTranslationInput(e.target.value)}
+              value={currentInput}
+              onChange={(e) => {
+                if (isCopticToEnglish) {
+                  setTranslationInput(e.target.value);
+                  return;
+                }
+                setEnglishInput(e.target.value);
+              }}
               onPointerDown={hideKeyboardOnManualInputFocus}
-              placeholder="Type Coptic text..."
+              placeholder={isCopticToEnglish ? "Type Coptic text..." : "Type English text..."}
               className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
             />
             <button
               type="button"
-              onClick={runTranslation}
-              disabled={translationState === "loading"}
+              onClick={runCurrentTranslation}
+              disabled={currentState === "loading"}
               className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text-color)] hover:bg-[var(--surface-1)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {translationState === "loading" ? "Translating…" : "Translate"}
+              {currentState === "loading" ? "Translating…" : "Translate"}
             </button>
           </div>
 
-          {translationState === "error" ? (
-            <p className="mt-3 text-xs text-rose-300">{translationError}</p>
+          {currentState === "error" ? (
+            <p className="mt-3 text-xs text-rose-300">{currentError}</p>
           ) : null}
 
           <div className="mt-4 rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] p-4">
             <p className="text-xs text-[var(--text-muted)]">Output</p>
-            <p className="mt-2 text-lg text-[var(--text-color)]">{translationOutput || "Translation will appear here."}</p>
-            {confidence !== null ? (
+            <p className={`mt-2 text-lg text-[var(--text-color)] ${!isCopticToEnglish && currentOutput ? "coptic-text" : ""}`}>
+              {currentOutput || "Translation will appear here."}
+            </p>
+            {currentConfidence !== null ? (
               <p className="mt-2 text-xs text-[var(--text-muted)]">
-                Confidence: {(confidence * 100).toFixed(1)}%
+                Confidence: {(currentConfidence * 100).toFixed(1)}%
               </p>
             ) : null}
           </div>
 
-          {!isMobileViewport ? (
+            {!isMobileViewport && isCopticToEnglish ? (
             <div className="mt-4 rounded-2xl border border-[var(--kb-border)] p-3" style={{ background: "var(--kb-shell)" }}>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm text-[var(--text-muted)]">Coptic keyboard</span>
@@ -387,43 +426,7 @@ export default function TranslatorPage() {
         </div>
       </div>
 
-        <div className="mt-5 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4">
-          <h2 className="text-xl font-semibold tracking-tight">English → Coptic translator</h2>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Model-backed translation using local inference ({dialectLabel}).
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input
-              value={englishInput}
-              onChange={(e) => setEnglishInput(e.target.value)}
-              placeholder='Type English text...'
-              className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
-            />
-            <button
-              type="button"
-              onClick={runEnglishToCopticTranslation}
-              disabled={englishState === "loading"}
-              className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text-color)] hover:bg-[var(--surface-1)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {englishState === "loading" ? "Translating…" : "Translate"}
-            </button>
-          </div>
-
-          {englishState === "error" ? <p className="mt-3 text-xs text-rose-300">{englishError}</p> : null}
-
-          <div className="mt-4 rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] p-4">
-            <p className="text-xs text-[var(--text-muted)]">Output</p>
-            <p className="coptic-text mt-2 text-lg text-[var(--text-color)]">{englishOutput || "Translation will appear here."}</p>
-            {englishConfidence !== null ? (
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                Confidence: {(englishConfidence * 100).toFixed(1)}%
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-      {isMobileViewport && showKeyboard ? (
+      {isMobileViewport && showKeyboard && isCopticToEnglish ? (
         <div
           style={{
             position: "fixed",
@@ -447,7 +450,7 @@ export default function TranslatorPage() {
         </div>
       ) : null}
 
-      {isMobileViewport && !showKeyboard ? (
+      {isMobileViewport && !showKeyboard && isCopticToEnglish ? (
         <div className="fixed bottom-4 right-4 z-50">
           <button
             type="button"
