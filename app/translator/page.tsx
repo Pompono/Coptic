@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type PointerEvent, useEffect, useRef, useState } from "react";
 
 type TranslationPayload = {
   translation?: string;
@@ -125,12 +125,12 @@ export default function TranslatorPage() {
     return () => mql.removeEventListener("change", update);
   }, []);
 
-  const hideKeyboardOnManualInputFocus = () => {
+  const hideKeyboardOnManualInputFocus = (event: PointerEvent<HTMLInputElement>) => {
     if (!isMobileViewport || !showKeyboard) return;
+    event.currentTarget.readOnly = false;
+    event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
+    event.currentTarget.focus({ preventScroll: true });
   };
 
   const page: KeyDef[][] = mode === "ABC" ? KB_ABC : mode === "NUMBERS" ? KB_NUMBERS : KB_SYMBOLS;
@@ -378,7 +378,7 @@ export default function TranslatorPage() {
                 }
                 setEnglishInput(e.target.value);
               }}
-              onPointerDown={hideKeyboardOnManualInputFocus}
+              onPointerDownCapture={hideKeyboardOnManualInputFocus}
               placeholder={isCopticToEnglish ? "Type Coptic text..." : "Type English text..."}
               className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
             />

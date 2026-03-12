@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 type BohExample = { sentence: string; translation: string; source?: string };
 type BohairicEntryRaw = {
@@ -446,12 +446,12 @@ export default function DictionaryPage() {
     setShiftMode((prev) => (prev === "off" ? "once" : "off"));
   };
 
-  const hideKeyboardOnManualInputFocus = () => {
+  const hideKeyboardOnManualInputFocus = (event: PointerEvent<HTMLInputElement>) => {
     if (!isMobileViewport || !showKeyboard) return;
+    event.currentTarget.readOnly = false;
+    event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
-    requestAnimationFrame(() => {
-      queryInputRef.current?.focus();
-    });
+    event.currentTarget.focus({ preventScroll: true });
   };
 
   const handleKey = (k: KeyDef) => {
@@ -553,7 +553,7 @@ export default function DictionaryPage() {
               ref={queryInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onPointerDown={hideKeyboardOnManualInputFocus}
+              onPointerDownCapture={hideKeyboardOnManualInputFocus}
               readOnly={isMobileViewport && showKeyboard}
               inputMode={isMobileViewport && showKeyboard ? "none" : "text"}
               placeholder="Search Coptic or English..."

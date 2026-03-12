@@ -223,13 +223,13 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
     setStatus(ok ? "correct" : "wrong");
   };
 
-  const hideKeyboardOnManualInputFocus = () => {
+  const hideKeyboardOnManualInputFocus = (event: React.PointerEvent<HTMLInputElement>) => {
     if (!isMobileViewport || !showKeyboard) return;
+    event.currentTarget.readOnly = false;
+    event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
+    event.currentTarget.focus({ preventScroll: true });
   };
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
 
   const next = () => {
     const isLast = stepIndex >= lesson.steps.length - 1;
@@ -393,7 +393,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         onKeyDown={(e) => {
           if (e.key === "Enter") check();
         }}
-        onPointerDown={hideKeyboardOnManualInputFocus}
+        onPointerDownCapture={hideKeyboardOnManualInputFocus}
         readOnly={isMobileViewport && showKeyboard}
         inputMode={isMobileViewport && showKeyboard ? "none" : "text"}
         placeholder="Type here..."
