@@ -49,7 +49,7 @@ function uniqueStrings(arr: string[]) {
 }
 
 export default function DictionaryEntryClient({ lemma }: { lemma: string }) {
-  const [bohairicOnly, setBohairicOnly] = useState(false);
+  const [bohairicOnly, setBohairicOnly] = useState(true);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 

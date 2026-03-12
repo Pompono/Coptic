@@ -202,7 +202,7 @@ const KB_SYMBOLS: KeyDef[][] = [
 
 export default function DictionaryPage() {
   const [query, setQuery] = useState("");
-  const [bohairicOnly, setBohairicOnly] = useState(false);
+  const [bohairicOnly, setBohairicOnly] = useState(true);
   const [posFilter, setPosFilter] = useState("All");
   const [examplesOnly, setExamplesOnly] = useState(false);
   const [posOpen, setPosOpen] = useState(false);
