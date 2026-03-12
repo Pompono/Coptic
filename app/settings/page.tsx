@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [fontMode, setFontMode] = useState<CopticFontMode>("unicode");
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [keyboardEnabled, setKeyboardEnabled] = useState(true);
+  const [isNarrowLayout, setIsNarrowLayout] = useState(false);
 
   useEffect(() => {
     const savedFont = localStorage.getItem(COPTIC_FONT_STORAGE_KEY);
@@ -36,6 +37,18 @@ export default function SettingsPage() {
     applyThemeMode(theme);
 
     setKeyboardEnabled(isCopticKeyboardEnabled());
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 430px)");
+    const syncNarrowLayout = () => setIsNarrowLayout(mediaQuery.matches);
+
+    syncNarrowLayout();
+    mediaQuery.addEventListener("change", syncNarrowLayout);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncNarrowLayout);
+    };
   }, []);
 
   const onToggleFont = (nextMode: CopticFontMode) => {
@@ -69,6 +82,29 @@ export default function SettingsPage() {
     fontFamily: "inherit",
   });
 
+  const toggleRowStyle = {
+    display: "grid",
+    gridTemplateColumns: isNarrowLayout ? "1fr" : "minmax(160px, max-content) auto",
+    alignItems: "center",
+    columnGap: 10,
+    rowGap: isNarrowLayout ? 8 : 0,
+  } as const;
+
+  const toggleLabelStyle = {
+    fontSize: 14,
+    fontWeight: 600,
+    maxWidth: "100%",
+    overflowWrap: "anywhere" as const,
+  } as const;
+
+  const toggleControlStyle = {
+    display: "inline-flex",
+    border: "1px solid var(--border-color)",
+    borderRadius: 8,
+    overflow: "hidden",
+    justifySelf: "end",
+  } as const;
+
   return (
     <main style={{ padding: 24, maxWidth: 900, margin: "0 auto", minHeight: "100vh" }}>
       <Link href="/" style={{ color: "var(--text-color)", textDecoration: "none", opacity: 0.9 }}>
@@ -88,16 +124,9 @@ export default function SettingsPage() {
           background: "var(--panel-bg)",
         }}
       >
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }} aria-label="Theme toggle">
-          <span style={{ fontSize: 14, fontWeight: 600, minWidth: 95 }}>App Theme</span>
-          <div
-            style={{
-              display: "inline-flex",
-              border: "1px solid var(--border-color)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
+        <div style={toggleRowStyle} aria-label="Theme toggle">
+          <span style={toggleLabelStyle}>App Theme</span>
+          <div style={toggleControlStyle}>
             <button type="button" onClick={() => onToggleTheme("light")} style={toggleButtonStyle(themeMode === "light")}>
               Light
             </button>
@@ -107,17 +136,10 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }} aria-label="Coptic font toggle">
-          <span style={{ fontSize: 14, fontWeight: 600, minWidth: 95 }}>Coptic Font</span>
+        <div style={toggleRowStyle} aria-label="Coptic font toggle">
+          <span style={toggleLabelStyle}>Coptic Font</span>
 
-          <div
-            style={{
-              display: "inline-flex",
-              border: "1px solid var(--border-color)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
+          <div style={toggleControlStyle}>
             <button type="button" onClick={() => onToggleFont("unicode")} style={toggleButtonStyle(fontMode === "unicode")}>
               Standard
             </button>
@@ -128,32 +150,25 @@ export default function SettingsPage() {
         </div>
 
         <div
-          style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+          style={toggleRowStyle}
           aria-label="On-screen Coptic keyboard toggle"
         >
-          <span style={{ fontSize: 14, fontWeight: 600, minWidth: 160 }}>On-screen Coptic keyboard</span>
+          <span style={toggleLabelStyle}>On-screen Coptic Keyboard</span>
 
-          <div
-            style={{
-              display: "inline-flex",
-              border: "1px solid var(--border-color)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => onToggleKeyboardEnabled(true)}
-              style={toggleButtonStyle(keyboardEnabled)}
-            >
-              Enabled
-            </button>
+          <div style={toggleControlStyle}>
             <button
               type="button"
               onClick={() => onToggleKeyboardEnabled(false)}
               style={toggleButtonStyle(!keyboardEnabled)}
             >
               Disabled
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleKeyboardEnabled(true)}
+              style={toggleButtonStyle(keyboardEnabled)}
+            >
+              Enabled
             </button>
           </div>
         </div>
