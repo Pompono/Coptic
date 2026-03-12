@@ -449,6 +449,9 @@ export default function DictionaryPage() {
   const hideKeyboardOnManualInputFocus = () => {
     if (!isMobileViewport || !showKeyboard) return;
     setShowKeyboard(false);
+    requestAnimationFrame(() => {
+      queryInputRef.current?.focus();
+    });
   };
 
   const handleKey = (k: KeyDef) => {

@@ -126,8 +126,11 @@ export default function TranslatorPage() {
   }, []);
 
   const hideKeyboardOnManualInputFocus = () => {
-    if (!isMobileViewport) return;
+    if (!isMobileViewport || !showKeyboard) return;
     setShowKeyboard(false);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   };
 
   const page: KeyDef[][] = mode === "ABC" ? KB_ABC : mode === "NUMBERS" ? KB_NUMBERS : KB_SYMBOLS;

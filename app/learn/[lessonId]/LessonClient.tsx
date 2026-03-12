@@ -227,6 +227,9 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
     if (!isMobileViewport || !showKeyboard) return;
     setShowKeyboard(false);
   };
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
 
   const next = () => {
     const isLast = stepIndex >= lesson.steps.length - 1;
