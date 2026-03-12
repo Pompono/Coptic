@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type PointerEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { isCopticKeyboardEnabled } from "../CopticKeyboardPreference";
 
 type BohExample = { sentence: string; translation: string; source?: string };
 type BohairicEntryRaw = {
@@ -209,7 +210,8 @@ export default function DictionaryPage() {
   const [posSearch, setPosSearch] = useState("");
   const posDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(isCopticKeyboardEnabled);
+  const [keyboardEnabled, setKeyboardEnabled] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<PageMode>("ABC");
   const [shiftMode, setShiftMode] = useState<"off" | "once" | "lock">("off");
@@ -302,6 +304,10 @@ export default function DictionaryPage() {
     update();
     mql.addEventListener("change", update);
     return () => mql.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    setKeyboardEnabled(isCopticKeyboardEnabled());
   }, []);
 
   useEffect(() => {
@@ -446,8 +452,8 @@ export default function DictionaryPage() {
     setShiftMode((prev) => (prev === "off" ? "once" : "off"));
   };
 
-  const hideKeyboardOnManualInputFocus = (event: PointerEvent<HTMLInputElement>) => {
-    if (!isMobileViewport || !showKeyboard) return;
+  const hideKeyboardOnManualInputFocus = (event: ReactPointerEvent<HTMLInputElement>) => {
+    if (!keyboardEnabled || !isMobileViewport || !showKeyboard) return;
     event.currentTarget.readOnly = false;
     event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
@@ -501,7 +507,7 @@ export default function DictionaryPage() {
       className="min-h-screen bg-[var(--bg-color)] text-[var(--text-color)]"
       style={{
         paddingBottom:
-          isMobileViewport && showKeyboard
+          keyboardEnabled && isMobileViewport && showKeyboard
             ? "calc(340px + env(safe-area-inset-bottom, 0px))"
             : undefined,
       }}
@@ -510,7 +516,7 @@ export default function DictionaryPage() {
         className="mx-auto max-w-5xl px-5 py-8"
         style={{
           paddingBottom:
-            isMobileViewport && showKeyboard
+            keyboardEnabled && isMobileViewport && showKeyboard
               ? "calc(24px + env(safe-area-inset-bottom, 0px))"
               : undefined,
         }}
@@ -554,14 +560,14 @@ export default function DictionaryPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onPointerDownCapture={hideKeyboardOnManualInputFocus}
-              readOnly={isMobileViewport && showKeyboard}
-              inputMode={isMobileViewport && showKeyboard ? "none" : "text"}
+              readOnly={keyboardEnabled && isMobileViewport && showKeyboard}
+              inputMode={keyboardEnabled && isMobileViewport && showKeyboard ? "none" : "text"}
               placeholder="Search Coptic or English..."
               className="coptic-text w-full bg-transparent text-base outline-none placeholder:text-[var(--text-soft)]"
             />
           </div>
 
-          {!isMobileViewport ? (
+          {keyboardEnabled && !isMobileViewport ? (
           <div className="rounded-2xl border border-[var(--kb-border)] p-3"
             style={{ background: "var(--kb-shell)" }}>
             <div className="mb-3 flex items-center justify-between">
@@ -902,7 +908,7 @@ export default function DictionaryPage() {
         </div>
       </div>
 
-      {isMobileViewport && showKeyboard ? (
+      {keyboardEnabled && isMobileViewport && showKeyboard ? (
         <div
           style={{
             position: "fixed",
@@ -1019,7 +1025,7 @@ export default function DictionaryPage() {
         </div>
       ) : null}
 
-      {isMobileViewport && !showKeyboard ? (
+      {keyboardEnabled && isMobileViewport && !showKeyboard ? (
         <div className="fixed bottom-4 right-4 z-50">
           <button
             type="button"

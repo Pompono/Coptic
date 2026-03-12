@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
+import { isCopticKeyboardEnabled } from "../CopticKeyboardPreference";
 
 type TranslationPayload = {
   translation?: string;
@@ -110,7 +111,8 @@ export default function TranslatorPage() {
   const [englishError, setEnglishError] = useState("");
   const [englishOutput, setEnglishOutput] = useState("");
   const [englishConfidence, setEnglishConfidence] = useState<number | null>(null);
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(isCopticKeyboardEnabled);
+  const [keyboardEnabled, setKeyboardEnabled] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<PageMode>("ABC");
   const [shiftMode, setShiftMode] = useState<"off" | "once" | "lock">("off");
@@ -125,8 +127,12 @@ export default function TranslatorPage() {
     return () => mql.removeEventListener("change", update);
   }, []);
 
-  const hideKeyboardOnManualInputFocus = (event: PointerEvent<HTMLInputElement>) => {
-    if (!isMobileViewport || !showKeyboard) return;
+  useEffect(() => {
+    setKeyboardEnabled(isCopticKeyboardEnabled());
+  }, []);
+
+  const hideKeyboardOnManualInputFocus = (event: ReactPointerEvent<HTMLInputElement>) => {
+    if (!keyboardEnabled || !isMobileViewport || !showKeyboard) return;
     event.currentTarget.readOnly = false;
     event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
@@ -408,7 +414,7 @@ export default function TranslatorPage() {
             ) : null}
           </div>
 
-            {!isMobileViewport && isCopticToEnglish ? (
+            {keyboardEnabled && !isMobileViewport && isCopticToEnglish ? (
             <div className="mt-4 rounded-2xl border border-[var(--kb-border)] p-3" style={{ background: "var(--kb-shell)" }}>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm text-[var(--text-muted)]">Coptic keyboard</span>
@@ -429,7 +435,7 @@ export default function TranslatorPage() {
         </div>
       </div>
 
-      {isMobileViewport && showKeyboard && isCopticToEnglish ? (
+      {keyboardEnabled && isMobileViewport && showKeyboard && isCopticToEnglish ? (
         <div
           style={{
             position: "fixed",
@@ -453,7 +459,7 @@ export default function TranslatorPage() {
         </div>
       ) : null}
 
-      {isMobileViewport && !showKeyboard && isCopticToEnglish ? (
+      {keyboardEnabled && isMobileViewport && !showKeyboard && isCopticToEnglish ? (
         <div className="fixed bottom-4 right-4 z-50">
           <button
             type="button"

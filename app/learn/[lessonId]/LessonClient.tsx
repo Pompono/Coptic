@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { isCopticKeyboardEnabled } from "../../CopticKeyboardPreference";
 import { lessons } from "../../../lib/lesson";
 
 type SpecialKey =
@@ -174,7 +175,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
 
   const [mode, setMode] = useState<PageMode>("ABC");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(isCopticKeyboardEnabled);
+  const [keyboardEnabled, setKeyboardEnabled] = useState(true);
 
   // shiftMode:
   // - "off" = lowercase
@@ -201,6 +203,10 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
     return () => mql.removeEventListener("change", update);
   }, []);
 
+  useEffect(() => {
+    setKeyboardEnabled(isCopticKeyboardEnabled());
+  }, []);
+
   if (!lesson) {
     return (
       <main style={{ maxWidth: 900, margin: "0 auto", padding: 24, color: "var(--text-color)" }}>
@@ -224,7 +230,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
   };
 
   const hideKeyboardOnManualInputFocus = (event: React.PointerEvent<HTMLInputElement>) => {
-    if (!isMobileViewport || !showKeyboard) return;
+    if (!keyboardEnabled || !isMobileViewport || !showKeyboard) return;
     event.currentTarget.readOnly = false;
     event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
@@ -352,7 +358,7 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         margin: "0 auto",
         padding: 24,
         color: "var(--text-color)",
-        paddingBottom: isMobileViewport && showKeyboard ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
+        paddingBottom: keyboardEnabled && isMobileViewport && showKeyboard ? "calc(360px + env(safe-area-inset-bottom, 0px))" : 24,
       }}
     >
       <div style={{ marginBottom: 14 }}>
@@ -394,8 +400,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           if (e.key === "Enter") check();
         }}
         onPointerDownCapture={hideKeyboardOnManualInputFocus}
-        readOnly={isMobileViewport && showKeyboard}
-        inputMode={isMobileViewport && showKeyboard ? "none" : "text"}
+        readOnly={keyboardEnabled && isMobileViewport && showKeyboard}
+        inputMode={keyboardEnabled && isMobileViewport && showKeyboard ? "none" : "text"}
         placeholder="Type here..."
         autoFocus
         spellCheck={false}
@@ -480,28 +486,8 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
         </div>
       ) : null}
 
-      {isMobileViewport && !showKeyboard ? (
-        <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 60 }}>
-          <button
-            type="button"
-            onClick={() => setShowKeyboard(true)}
-            style={{
-              borderRadius: 999,
-              border: "1px solid var(--border-color)",
-              background: "var(--panel-bg)",
-              color: "var(--text-color)",
-              padding: "10px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
-            }}
-          >
-            Show Coptic keyboard
-          </button>
-        </div>
-      ) : null}
-
-      {/* Keyboard */} 
+      {/* Keyboard */}
+      {keyboardEnabled ? (
       <div 
         style={{
           marginTop: 18,
@@ -511,10 +497,10 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           bottom: isMobileViewport ? 0 : undefined,
           zIndex: isMobileViewport ? 50 : undefined,
           padding: isMobileViewport ? "0 10px calc(8px + env(safe-area-inset-bottom, 0px))" : undefined,
-          display: isMobileViewport && !showKeyboard ? "none" : undefined,
+          display: keyboardEnabled && isMobileViewport && !showKeyboard ? "none" : undefined,
         }}
       >
-        {isMobileViewport ? (
+        {keyboardEnabled && isMobileViewport ? (
           <div style={{ marginBottom: 8, display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
@@ -631,8 +617,9 @@ export default function LessonClient({ lessonId }: { lessonId: string }) {
           ))}
         </div>
       </div>
+      ) : null}
 
-      {isMobileViewport && !showKeyboard ? (
+      {keyboardEnabled && isMobileViewport && !showKeyboard ? (
         <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 60 }}>
           <button
             type="button"
