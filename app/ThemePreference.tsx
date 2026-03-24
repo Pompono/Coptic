@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
 
 export const THEME_STORAGE_KEY = "theme-mode";
 export type ThemeMode = "dark" | "light";
@@ -15,7 +16,7 @@ function getPreferredTheme(): ThemeMode {
     return saved;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export const themeInitScript = `(() => {
@@ -24,7 +25,7 @@ export const themeInitScript = `(() => {
     const saved = localStorage.getItem(key);
     const mode = saved === "dark" || saved === "light"
       ? saved
-      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      : "light";
     document.documentElement.dataset.theme = mode;
   } catch {
     document.documentElement.dataset.theme = "light";
@@ -39,12 +40,11 @@ export default function ThemePreference() {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onSystemThemeChange = () => {
       if (!localStorage.getItem(THEME_STORAGE_KEY)) {
-        applyThemeMode(media.matches ? "dark" : "light");
+        applyThemeMode("light");
       }
     };
 
-    media.addEventListener("change", onSystemThemeChange);
-    return () => media.removeEventListener("change", onSystemThemeChange);
+    return subscribeToMediaQueryChange(media, onSystemThemeChange);
   }, []);
 
   return null;

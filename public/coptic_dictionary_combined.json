@@ -829,7 +829,7 @@
       "ⲁⲛⲅ-",
       "ⲁⲛⲕ-"
     ],
-    "pos": "Selbst. Pers. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "moi"
     ],
@@ -898,7 +898,7 @@
       "ⲁⲛⲛⲉ-",
       "ⲁⲛⲛ⸗"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "if (he will) not, unless"
     ],
@@ -941,7 +941,7 @@
       "ⲁⲛⲁⲛ",
       "ⲁⲛ(ⲛ)-"
     ],
-    "pos": "Selbst. Pers. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "we"
     ],
@@ -4559,7 +4559,7 @@
     "forms": [
       "ⲉⲓⲡⲛ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "this"
     ],
@@ -4745,7 +4745,7 @@
     "forms": [
       "ⲕ-"
     ],
-    "pos": "Präfixpronomen (Präsens I)",
+    "pos": "Prefix pronoun",
     "gloss": [
       "prefix of 1st present 2nd person sing. masc."
     ],
@@ -6805,7 +6805,7 @@
     "forms": [
       "ⲗⲁ-"
     ],
-    "pos": "Nominalpräfix",
+    "pos": "Nominal prefix",
     "gloss": [
       "possessing, endued with"
     ],
@@ -7797,7 +7797,7 @@
     "forms": [
       "ⲗⲁϥ"
     ],
-    "pos": "Adj.?",
+    "pos": "Adjective",
     "gloss": [
       "pleasant"
     ],
@@ -8287,7 +8287,7 @@
     "forms": [
       "ⲙⲁⲁⲃ"
     ],
-    "pos": "Zahlwort",
+    "pos": "Numbers",
     "gloss": [
       "thirty"
     ],
@@ -8684,7 +8684,7 @@
     "forms": [
       "ⲙⲛ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "prefix of neg. imperative"
     ],
@@ -8831,7 +8831,7 @@
     "forms": [
       "ⲙⲛⲧ-"
     ],
-    "pos": "Nominalpräfix",
+    "pos": "Nominal prefix",
     "gloss": [
       "pref. to nn. or adj. forming abstracts"
     ],
@@ -8886,7 +8886,7 @@
     "forms": [
       "ⲙⲡⲁⲧⲉ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "(of what) has not yet happened"
     ],
@@ -8925,7 +8925,7 @@
     "forms": [
       "ⲙⲁⲣⲉ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "verbal pref. causative imperative"
     ],
@@ -8939,7 +8939,7 @@
       "ⲙⲉⲣⲉ-",
       "ⲙⲁⲣⲉ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "pref. neg. aorist"
     ],
@@ -10021,7 +10021,7 @@
     "forms": [
       "ⲛ-"
     ],
-    "pos": "bestimmter Artikel",
+    "pos": "Article",
     "gloss": [
       "the",
       "plural of def. article"
@@ -10035,7 +10035,7 @@
     "forms": [
       "ⲛⲁ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "my",
       "possessive article; [possessed]: pl., [possessor]: 1 p. sg."
@@ -10049,7 +10049,7 @@
     "forms": [
       "ⲛⲁ-"
     ],
-    "pos": "Possessivpräfix",
+    "pos": "Possessive prefix",
     "gloss": [
       "those of",
       "plural of possessive prefix"
@@ -10106,7 +10106,7 @@
     "forms": [
       "ⲛⲉ⸗"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "plural of possessive article"
     ],
@@ -10119,7 +10119,7 @@
     "forms": [
       "ⲛⲉ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "plural copula (nexus pronoun)"
     ],
@@ -10133,7 +10133,7 @@
       "ⲛⲟⲩ-",
       "ⲛⲉ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "your",
       "possessive article; [possessed]: pl., [possessor]: 2 p. f. sg."
@@ -10160,7 +10160,7 @@
     "forms": [
       "ⲛⲏ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "those"
     ],
@@ -10241,7 +10241,7 @@
     "forms": [
       "ⲛⲁⲓ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "these"
     ],
@@ -10548,7 +10548,7 @@
     "forms": [
       "ⲛⲧⲉ"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "prefixe of conjunctive"
     ],
@@ -10561,7 +10561,7 @@
     "forms": [
       "ⲛⲧⲟ"
     ],
-    "pos": "Selbst. Pers. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "thou, you"
     ],
@@ -10574,7 +10574,7 @@
     "forms": [
       "ⲛⲧⲟⲕ"
     ],
-    "pos": "Selbst. Pers. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "thou, you"
     ],
@@ -10587,7 +10587,7 @@
     "forms": [
       "ⲛⲧⲉⲣⲉ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "when, after"
     ],
@@ -10600,7 +10600,7 @@
     "forms": [
       "ⲛⲧⲱⲧⲛ"
     ],
-    "pos": "Selbst. Pers. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "you"
     ],
@@ -11229,7 +11229,7 @@
     "forms": [
       "ⲡ-"
     ],
-    "pos": "bestimmter Artikel",
+    "pos": "Article",
     "gloss": [
       "the",
       "masc. definite article"
@@ -11243,7 +11243,7 @@
     "forms": [
       "ⲡⲁ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "my",
       "Possessive article; [possessed]: m. sg., [possessor]: 1 p. sg."
@@ -11257,7 +11257,7 @@
     "forms": [
       "ⲡⲁ-"
     ],
-    "pos": "Possessivpräfix",
+    "pos": "Possessive prefix",
     "gloss": [
       "the . . . belonging to, the (man) of",
       "masc. possessive prefix"
@@ -11271,7 +11271,7 @@
     "forms": [
       "ⲡⲉ⸗"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "masc. possessive article sg."
     ],
@@ -11285,7 +11285,7 @@
       "ⲡⲟⲩ-",
       "ⲡⲉ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "your",
       "possessive article; [possessed]: m. sg., [possessor]: 2 p. f. sg."
@@ -11299,7 +11299,7 @@
     "forms": [
       "ⲡⲉ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "sg. masc. copula (nexus pronoun)",
       "verbal enclitic following imperf. etc."
@@ -11340,7 +11340,7 @@
     "forms": [
       "ⲡⲏ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "that (one)"
     ],
@@ -11394,7 +11394,7 @@
     "forms": [
       "ⲡⲁⲓ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "this"
     ],
@@ -12154,7 +12154,7 @@
     "forms": [
       "ⲣⲱ"
     ],
-    "pos": "Partikel, enklitisch",
+    "pos": "Particle",
     "gloss": [
       "same, again, also",
       "indeed, but (emphasis or contrast)",
@@ -12659,7 +12659,7 @@
     "forms": [
       "ⲥ̅"
     ],
-    "pos": "Zahlzeichen",
+    "pos": "Numbers",
     "gloss": [
       "numeral: 200"
     ],
@@ -12672,7 +12672,7 @@
     "forms": [
       "ⲥ-"
     ],
-    "pos": "Präfixpronomen (Präsens I)",
+    "pos": "Prefix pronoun",
     "gloss": [
       "she"
     ],
@@ -12698,7 +12698,7 @@
     "forms": [
       "ⲥⲉ-"
     ],
-    "pos": "Präfixpronomen (Präsens I)",
+    "pos": "Prefix pronoun",
     "gloss": [
       "they"
     ],
@@ -13261,7 +13261,7 @@
     "forms": [
       "ⲥⲱⲗⲁⲗⲉ"
     ],
-    "pos": "Vb.?",
+    "pos": "Verb",
     "gloss": [
       "meaning unknown"
     ],
@@ -14913,7 +14913,7 @@
     "forms": [
       "ⲧ"
     ],
-    "pos": "Zahlzeichen",
+    "pos": "Numbers",
     "gloss": [
       "numeral: 300"
     ],
@@ -14926,7 +14926,7 @@
     "forms": [
       "ⲧ-"
     ],
-    "pos": "bestimmter Artikel",
+    "pos": "Article",
     "gloss": [
       "the"
     ],
@@ -14939,7 +14939,7 @@
     "forms": [
       "ⲧⲁ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "my",
       "possessive article; [possessed]: f. sg., [possessor]: 1 p. sg."
@@ -14953,7 +14953,7 @@
     "forms": [
       "ⲧⲁ-"
     ],
-    "pos": "Possessivpräfix",
+    "pos": "Possessive prefix",
     "gloss": [
       "the . . . belonging to, she of ..."
     ],
@@ -14966,7 +14966,7 @@
     "forms": [
       "ⲧⲉ⸗"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "fem. possessive article sg."
     ],
@@ -14979,7 +14979,7 @@
     "forms": [
       "ⲧⲁ-"
     ],
-    "pos": "Präfix",
+    "pos": "Prefix",
     "gloss": [
       "toward (prefix to nouns of direction/place)"
     ],
@@ -14992,7 +14992,7 @@
     "forms": [
       "ⲧⲉ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "copule, fem sg."
     ],
@@ -15019,7 +15019,7 @@
     "forms": [
       "ⲧⲉ-"
     ],
-    "pos": "Präfixpronomen (Präsens I)",
+    "pos": "Prefix pronoun",
     "gloss": [
       "prefix of 2nd person feminine singular of 1st Present"
     ],
@@ -15032,7 +15032,7 @@
     "forms": [
       "ⲧⲟⲩ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "my",
       "possessive article; [possessed]: f. sg., [possessor]: 2 p. f. sg."
@@ -15072,7 +15072,7 @@
     "forms": [
       "ⲧⲏ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "that"
     ],
@@ -15231,7 +15231,7 @@
     "forms": [
       "ⲧⲃⲁⲓ-"
     ],
-    "pos": "Präfix",
+    "pos": "Prefix",
     "gloss": [
       "upon (in ⲧⲃⲁⲓⲧⲱⲟⲩ, \"upon (his) mountain\", Anubis's title)"
     ],
@@ -15335,7 +15335,7 @@
     "forms": [
       "ⲧⲁⲓ"
     ],
-    "pos": "Dem. Pron.",
+    "pos": "Pronoun",
     "gloss": [
       "this"
     ],
@@ -15611,7 +15611,7 @@
     "forms": [
       "ⲧⲙ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "negation of infinitive and some verbal forms"
     ],
@@ -15742,7 +15742,7 @@
     "forms": [
       "ⲧⲛ-"
     ],
-    "pos": "Präfixpronomen (Präsens I)",
+    "pos": "Prefix pronoun",
     "gloss": [
       "prefix of 1st person plural of 1st Present"
     ],
@@ -16032,7 +16032,7 @@
     "forms": [
       "ⲧⲁⲣⲉ"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "prefix of future conjunctive (finalis)"
     ],
@@ -16357,7 +16357,7 @@
     "forms": [
       "ⲧⲥ"
     ],
-    "pos": "Adj.?",
+    "pos": "Adjective",
     "gloss": [
       "unknown meaning (abbreviation)"
     ],
@@ -16370,7 +16370,7 @@
     "forms": [
       "-ⲧⲁⲥⲉ"
     ],
-    "pos": "Zahlwort",
+    "pos": "Numbers",
     "gloss": [
       "six (after the tens)"
     ],
@@ -16541,7 +16541,7 @@
     "forms": [
       "ⲧⲉⲧⲛ-"
     ],
-    "pos": "Präfixpronomen (Präsens I)",
+    "pos": "Prefix pronoun",
     "gloss": [
       "prefix of 2nd person plural of 1st Present"
     ],
@@ -16554,7 +16554,7 @@
     "forms": [
       "ⲧⲉⲧⲟⲩⲉ"
     ],
-    "pos": "Vb.?",
+    "pos": "Verb",
     "gloss": [
       "unknown meaning"
     ],
@@ -16634,7 +16634,7 @@
     "forms": [
       "ⲧⲉⲩ-"
     ],
-    "pos": "Possessivartikel",
+    "pos": "Article",
     "gloss": [
       "their"
     ],
@@ -17122,7 +17122,7 @@
     "forms": [
       "ⲟⲩⲁ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "to be about to"
     ],
@@ -17518,7 +17518,7 @@
     "forms": [
       "ⲟⲩⲱⲣ"
     ],
-    "pos": "Vb.?",
+    "pos": "Verb",
     "gloss": [
       "unknown meaning"
     ],
@@ -18105,7 +18105,7 @@
     "forms": [
       "ⲭⲁⲣⲉⲃ"
     ],
-    "pos": "Adj.?",
+    "pos": "Adjective",
     "gloss": [
       "lowly"
     ],
@@ -18814,7 +18814,7 @@
     "forms": [
       "ϣⲟ"
     ],
-    "pos": "Zahlwort",
+    "pos": "Numbers",
     "gloss": [
       "thousand"
     ],
@@ -18920,7 +18920,7 @@
     "forms": [
       "ϣⲃⲉ"
     ],
-    "pos": "Zahlwort",
+    "pos": "Numbers",
     "gloss": [
       "seventy"
     ],
@@ -18959,7 +18959,7 @@
     "forms": [
       "ϣⲃⲉ"
     ],
-    "pos": "Adj.?",
+    "pos": "Adjective",
     "gloss": [
       "majestic"
     ],
@@ -19817,7 +19817,7 @@
     "forms": [
       "ϣⲁⲛⲧⲉ"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "until, so that"
     ],
@@ -20028,7 +20028,7 @@
     "forms": [
       "ϣⲁⲣⲉ-"
     ],
-    "pos": "Verbalpräfix",
+    "pos": "Verbal prefix",
     "gloss": [
       "(habit, continuance)"
     ],
@@ -21240,7 +21240,7 @@
     "forms": [
       "ⳉⲣⲏⲁⲣⲓⲧ"
     ],
-    "pos": "Vb.?",
+    "pos": "Verb",
     "gloss": [
       "unknown meaning"
     ],
@@ -23029,7 +23029,7 @@
     "forms": [
       "ϩⲙⲉ"
     ],
-    "pos": "Zahlwort",
+    "pos": "Numbers",
     "gloss": [
       "forty"
     ],
@@ -23042,7 +23042,7 @@
     "forms": [
       "ϩⲙⲉ"
     ],
-    "pos": "Zahlwort",
+    "pos": "Numbers",
     "gloss": [
       "forty"
     ],
@@ -28089,7 +28089,7 @@
     "forms": [
       "ϭⲓⲛ-"
     ],
-    "pos": "Nominalpräfix",
+    "pos": "Nominal prefix",
     "gloss": [
       "act of, manner of"
     ],

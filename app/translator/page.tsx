@@ -1,8 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
-import { isCopticKeyboardEnabled } from "../CopticKeyboardPreference";
+import { type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, useEffect, useRef, useState } from "react";
+import {
+  isCopticKeyboardEnabled,
+  readCopticKeyboardSessionVisibility,
+  writeCopticKeyboardSessionVisibility,
+} from "../CopticKeyboardPreference";
+import { isBohairicOnlyEnabled } from "../BohairicPreference";
+import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
 
 type TranslationPayload = {
   translation?: string;
@@ -102,6 +107,7 @@ export default function TranslatorPage() {
   const [direction, setDirection] = useState<TranslationDirection>("copticToEnglish");
   const [translationInput, setTranslationInput] = useState("");
   const [translatorDialect, setTranslatorDialect] = useState<"sahidic" | "bohairic">("bohairic");
+  const [bohairicOnlyEnabled, setGlobalBohairicOnlyEnabled] = useState(true);
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "error">("idle");
   const [translationError, setTranslationError] = useState("");
   const [translationOutput, setTranslationOutput] = useState("");
@@ -111,24 +117,53 @@ export default function TranslatorPage() {
   const [englishError, setEnglishError] = useState("");
   const [englishOutput, setEnglishOutput] = useState("");
   const [englishConfidence, setEnglishConfidence] = useState<number | null>(null);
-  const [showKeyboard, setShowKeyboard] = useState(isCopticKeyboardEnabled);
-  const [keyboardEnabled, setKeyboardEnabled] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [keyboardEnabled, setKeyboardEnabled] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<PageMode>("ABC");
   const [shiftMode, setShiftMode] = useState<"off" | "once" | "lock">("off");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const lastShiftTapRef = useRef<number>(0);
+  const mobileKeyboardTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const mobileKeyboardCloseTimerRef = useRef<number | null>(null);
+  const [mobileKeyboardDragY, setMobileKeyboardDragY] = useState(0);
+  const [mobileKeyboardIsDragging, setMobileKeyboardIsDragging] = useState(false);
+  const [mobileKeyboardIsClosing, setMobileKeyboardIsClosing] = useState(false);
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 768px)");
     const update = () => setIsMobileViewport(mql.matches);
     update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
+    return subscribeToMediaQueryChange(mql, update);
   }, []);
 
   useEffect(() => {
-    setKeyboardEnabled(isCopticKeyboardEnabled());
+    const enabled = isCopticKeyboardEnabled();
+    const mobileViewport = window.matchMedia("(max-width: 768px)").matches;
+    setKeyboardEnabled(enabled);
+    setShowKeyboard(enabled && !mobileViewport ? readCopticKeyboardSessionVisibility(true) : false);
+
+    const bohairicOnly = isBohairicOnlyEnabled();
+    setGlobalBohairicOnlyEnabled(bohairicOnly);
+    if (bohairicOnly) {
+      setTranslatorDialect("bohairic");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!bohairicOnlyEnabled) {
+      return;
+    }
+
+    setTranslatorDialect("bohairic");
+  }, [bohairicOnlyEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (mobileKeyboardCloseTimerRef.current !== null) {
+        window.clearTimeout(mobileKeyboardCloseTimerRef.current);
+      }
+    };
   }, []);
 
   const hideKeyboardOnManualInputFocus = (event: ReactPointerEvent<HTMLInputElement>) => {
@@ -136,7 +171,106 @@ export default function TranslatorPage() {
     event.currentTarget.readOnly = false;
     event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
+    writeCopticKeyboardSessionVisibility(false);
     event.currentTarget.focus({ preventScroll: true });
+  };
+
+  const setKeyboardVisibility = (visible: boolean) => {
+    if (mobileKeyboardCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileKeyboardCloseTimerRef.current);
+      mobileKeyboardCloseTimerRef.current = null;
+    }
+
+    if (visible) {
+      setMobileKeyboardDragY(0);
+      setMobileKeyboardIsDragging(false);
+      setMobileKeyboardIsClosing(false);
+    }
+
+    setShowKeyboard(visible);
+    writeCopticKeyboardSessionVisibility(visible);
+  };
+
+  const closeMobileKeyboardWithAnimation = () => {
+    if (!showKeyboard || !isMobileViewport) {
+      setKeyboardVisibility(false);
+      return;
+    }
+
+    if (mobileKeyboardCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileKeyboardCloseTimerRef.current);
+    }
+
+    setMobileKeyboardIsDragging(false);
+    setMobileKeyboardIsClosing(true);
+    setMobileKeyboardDragY(360);
+    mobileKeyboardCloseTimerRef.current = window.setTimeout(() => {
+      mobileKeyboardCloseTimerRef.current = null;
+      setMobileKeyboardIsClosing(false);
+      setMobileKeyboardDragY(0);
+      setKeyboardVisibility(false);
+    }, 180);
+  };
+
+  const handleMobileKeyboardTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1 || mobileKeyboardIsClosing) {
+      mobileKeyboardTouchStartRef.current = null;
+      setMobileKeyboardIsDragging(false);
+      return;
+    }
+
+    const touch = event.touches[0];
+    mobileKeyboardTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    setMobileKeyboardIsDragging(true);
+  };
+
+  const handleMobileKeyboardTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const start = mobileKeyboardTouchStartRef.current;
+    if (!start || event.touches.length !== 1) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaY = Math.max(0, touch.clientY - start.y);
+    const deltaX = Math.abs(touch.clientX - start.x);
+
+    if (deltaY <= 0 || deltaY < deltaX * 0.35) {
+      setMobileKeyboardDragY(0);
+      return;
+    }
+
+    setMobileKeyboardDragY(Math.min(deltaY, 360));
+  };
+
+  const handleMobileKeyboardTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = mobileKeyboardTouchStartRef.current;
+    mobileKeyboardTouchStartRef.current = null;
+    setMobileKeyboardIsDragging(false);
+
+    if (!start || event.changedTouches.length !== 1) {
+      setMobileKeyboardDragY(0);
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaY = touch.clientY - start.y;
+    const deltaX = Math.abs(touch.clientX - start.x);
+
+    if (deltaY > 60 && deltaY > deltaX * 1.2) {
+      closeMobileKeyboardWithAnimation();
+      return;
+    }
+
+    setMobileKeyboardDragY(0);
+  };
+
+  const handleMobileKeyboardTouchCancel = () => {
+    mobileKeyboardTouchStartRef.current = null;
+    setMobileKeyboardIsDragging(false);
+    setMobileKeyboardDragY(0);
   };
 
   const page: KeyDef[][] = mode === "ABC" ? KB_ABC : mode === "NUMBERS" ? KB_NUMBERS : KB_SYMBOLS;
@@ -170,6 +304,28 @@ export default function TranslatorPage() {
     setShiftMode((prev) => (prev === "off" ? "once" : "off"));
   };
 
+  const runCurrentTranslation = () => {
+    if (isCopticToEnglish) {
+      void runTranslation();
+      return;
+    }
+    void runEnglishToCopticTranslation();
+  };
+
+  const handleSubmit = (event: ReactFormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    runCurrentTranslation();
+  };
+
+  const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || currentState === "loading") {
+      return;
+    }
+
+    event.preventDefault();
+    runCurrentTranslation();
+  };
+
   const handleKey = (k: KeyDef) => {
     if (isKeyObj(k)) {
       switch (k.key) {
@@ -183,7 +339,7 @@ export default function TranslatorPage() {
           setTranslationInput((q) => q + " ");
           return;
         case "return":
-          inputRef.current?.blur();
+          runCurrentTranslation();
           return;
         case "toABC":
           setMode("ABC");
@@ -303,16 +459,18 @@ export default function TranslatorPage() {
   const currentError = isCopticToEnglish ? translationError : englishError;
   const currentConfidence = isCopticToEnglish ? confidence : englishConfidence;
 
-  const runCurrentTranslation = () => {
-    if (isCopticToEnglish) {
-      void runTranslation();
-      return;
-    }
-    void runEnglishToCopticTranslation();
-  };
-
   const handleSwitchDirection = () => {
     setDirection((current) => (current === "copticToEnglish" ? "englishToCoptic" : "copticToEnglish"));
+  };
+
+  const handleDialectToggle = () => {
+    if (bohairicOnlyEnabled) {
+      setTranslatorDialect("bohairic");
+      return;
+    }
+
+    const nextDialect = translatorDialect === "bohairic" ? "sahidic" : "bohairic";
+    setTranslatorDialect(nextDialect);
   };
 
   return (
@@ -328,23 +486,7 @@ export default function TranslatorPage() {
           paddingBottom: isMobileViewport && showKeyboard ? "calc(24px + env(safe-area-inset-bottom, 0px))" : undefined,
         }}
       >
-        <div className="flex items-center justify-between gap-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--surface-2)]"
-          >
-            ← Home
-          </Link>
-
-          <Link
-            href="/dictionary"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--surface-2)]"
-          >
-            Dictionary
-          </Link>
-        </div>
-
-        <h1 className="mt-7 text-4xl font-semibold tracking-tight">Coptic Translator</h1>
+        <h1 className="text-4xl font-semibold tracking-tight">Coptic Translator (Beta)</h1>
          <p className="mt-2 text-[var(--text-muted)]">
           {isCopticToEnglish ? "Coptic → English translator (local model)" : "English → Coptic translator (local model)"}
         </p>
@@ -354,17 +496,38 @@ export default function TranslatorPage() {
             <span className="text-xs text-[var(--text-muted)]">Dialect</span>
             <button
               type="button"
-              onClick={() =>
-                setTranslatorDialect((current) => (current === "bohairic" ? "sahidic" : "bohairic"))
+              onClick={handleDialectToggle}
+              disabled={bohairicOnlyEnabled}
+              className={[
+                "rounded-full border border-[var(--border-color)] px-3 py-1 text-xs",
+                bohairicOnlyEnabled
+                  ? "cursor-not-allowed opacity-90"
+                  : "bg-[var(--surface-2)] text-[var(--text-color)] hover:bg-[var(--surface-1)]",
+              ].join(" ")}
+              style={
+                bohairicOnlyEnabled
+                  ? {
+                      borderColor: "var(--bohairic-badge-border)",
+                      background: "var(--bohairic-badge-bg)",
+                      color: "var(--bohairic-badge-text)",
+                    }
+                  : undefined
               }
-              className="rounded-full border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-1 text-xs text-[var(--text-color)] hover:bg-[var(--surface-1)]"
-              title="Toggle translator dialect"
+              title={
+                bohairicOnlyEnabled
+                  ? "Disabled while global Bohairic-only mode is enabled"
+                  : "Toggle translator dialect"
+              }
+              aria-disabled={bohairicOnlyEnabled}
             >
-              {dialectLabel}
+              {bohairicOnlyEnabled ? "Bohairic-only" : dialectLabel}
             </button>
+            {bohairicOnlyEnabled ? (
+              <span className="text-xs text-[var(--text-muted)]">Locked by Settings</span>
+            ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <form className="mt-3 flex flex-wrap items-center gap-2" onSubmit={handleSubmit}>
             <button
               type="button"
               onClick={handleSwitchDirection}
@@ -384,19 +547,20 @@ export default function TranslatorPage() {
                 }
                 setEnglishInput(e.target.value);
               }}
+              onKeyDown={handleInputKeyDown}
               onPointerDownCapture={hideKeyboardOnManualInputFocus}
               placeholder={isCopticToEnglish ? "Type Coptic text..." : "Type English text..."}
+              enterKeyHint="go"
               className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
             />
             <button
-              type="button"
-              onClick={runCurrentTranslation}
+              type="submit"
               disabled={currentState === "loading"}
               className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text-color)] hover:bg-[var(--surface-1)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {currentState === "loading" ? "Translating…" : "Translate"}
             </button>
-          </div>
+          </form>
 
           {currentState === "error" ? (
             <p className="mt-3 text-xs text-rose-300">{currentError}</p>
@@ -420,7 +584,7 @@ export default function TranslatorPage() {
                 <span className="text-sm text-[var(--text-muted)]">Coptic keyboard</span>
                 <button
                   type="button"
-                  onClick={() => setShowKeyboard((v) => !v)}
+                  onClick={() => setKeyboardVisibility(!showKeyboard)}
                   className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-sm text-[var(--text-muted)] hover:bg-[var(--surface-2)]"
                 >
                   {showKeyboard ? "Hide" : "Show"}
@@ -437,6 +601,10 @@ export default function TranslatorPage() {
 
       {keyboardEnabled && isMobileViewport && showKeyboard && isCopticToEnglish ? (
         <div
+          onTouchStart={handleMobileKeyboardTouchStart}
+          onTouchMove={handleMobileKeyboardTouchMove}
+          onTouchEnd={handleMobileKeyboardTouchEnd}
+          onTouchCancel={handleMobileKeyboardTouchCancel}
           style={{
             position: "fixed",
             left: 0,
@@ -444,12 +612,18 @@ export default function TranslatorPage() {
             bottom: 0,
             zIndex: 40,
             padding: "0 10px calc(8px + env(safe-area-inset-bottom, 0px))",
+            touchAction: "none",
+            overscrollBehavior: "contain",
+            transform: `translateY(${mobileKeyboardDragY}px)`,
+            opacity: Math.max(0.72, 1 - mobileKeyboardDragY / 420),
+            transition: mobileKeyboardIsDragging ? "none" : "transform 180ms ease, opacity 180ms ease",
+            willChange: "transform, opacity",
           }}
         >
           <div className="mb-2 flex justify-end">
             <button
               type="button"
-              onClick={() => setShowKeyboard(false)}
+              onClick={closeMobileKeyboardWithAnimation}
               className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
             >
               Hide Coptic keyboard
@@ -460,10 +634,10 @@ export default function TranslatorPage() {
       ) : null}
 
       {keyboardEnabled && isMobileViewport && !showKeyboard && isCopticToEnglish ? (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="mobile-chin-avoid fixed bottom-4 right-4 z-50">
           <button
             type="button"
-            onClick={() => setShowKeyboard(true)}
+            onClick={() => setKeyboardVisibility(true)}
             className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
           >
             Show Coptic keyboard
@@ -544,3 +718,4 @@ function KeyboardGrid({
     </div>
   );
 }
+

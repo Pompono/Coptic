@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { lessons } from "@/lib/lesson";
 
 export default function Page() {
+  const firstUnit = lessons[0];
+  const startLearningHref = firstUnit ? `/learn/${firstUnit.id}` : "/learn";
+
   return (
     <main style={{ padding: 24, maxWidth: 900, margin: "0 auto", minHeight: "100vh" }}>
       <h1 style={{ fontSize: 40, fontWeight: 800, marginBottom: 10 }}>Coptic</h1>
@@ -11,7 +15,7 @@ export default function Page() {
 
       <div style={{ display: "flex", gap: 12 }}>
         <Link
-          href="/learn"
+          href={startLearningHref}
           style={{
             display: "inline-block",
             padding: "12px 18px",
@@ -59,6 +63,7 @@ export default function Page() {
       <Link
         href="/settings"
         aria-label="Open settings"
+        className="mobile-chin-hide-on-mobile"
         style={{
           position: "fixed",
           right: 14,

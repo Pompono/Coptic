@@ -1,8 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { type PointerEvent as ReactPointerEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { isCopticKeyboardEnabled } from "../CopticKeyboardPreference";
+import { type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  isCopticKeyboardEnabled,
+  readCopticKeyboardSessionVisibility,
+  writeCopticKeyboardSessionVisibility,
+} from "../CopticKeyboardPreference";
+import { isBohairicOnlyEnabled } from "../BohairicPreference";
+import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
 
 type BohExample = { sentence: string; translation: string; source?: string };
 type BohairicEntryRaw = {
@@ -60,6 +65,10 @@ type KeyDef =
 
 type PageMode = "ABC" | "NUMBERS" | "SYMBOLS";
 
+const POS_LABELS: Record<string, string> = {
+  q: "Qualitative",
+};
+
 function norm(s: string) {
   return (s || "").toLowerCase().normalize("NFKC").trim();
 }
@@ -86,6 +95,15 @@ function removeLastChar(s: string) {
 
 function isKeyObj(k: KeyDef): k is { key: SpecialKey; label?: string } {
   return typeof k !== "string";
+}
+
+function getPosLabel(pos: string) {
+  const trimmed = (pos || "").trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return POS_LABELS[trimmed.toLowerCase()] ?? trimmed;
 }
 
 const COPTIC_CASE_MAP: Record<string, string> = {
@@ -204,18 +222,24 @@ const KB_SYMBOLS: KeyDef[][] = [
 export default function DictionaryPage() {
   const [query, setQuery] = useState("");
   const [bohairicOnly, setBohairicOnly] = useState(true);
+  const [globalBohairicOnlyEnabled, setGlobalBohairicOnlyEnabled] = useState(true);
   const [posFilter, setPosFilter] = useState("All");
   const [examplesOnly, setExamplesOnly] = useState(false);
   const [posOpen, setPosOpen] = useState(false);
   const [posSearch, setPosSearch] = useState("");
   const posDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const [showKeyboard, setShowKeyboard] = useState(isCopticKeyboardEnabled);
-  const [keyboardEnabled, setKeyboardEnabled] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [keyboardEnabled, setKeyboardEnabled] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<PageMode>("ABC");
   const [shiftMode, setShiftMode] = useState<"off" | "once" | "lock">("off");
   const lastShiftTapRef = useRef<number>(0);
+  const mobileKeyboardTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const mobileKeyboardCloseTimerRef = useRef<number | null>(null);
+  const [mobileKeyboardDragY, setMobileKeyboardDragY] = useState(0);
+  const [mobileKeyboardIsDragging, setMobileKeyboardIsDragging] = useState(false);
+  const [mobileKeyboardIsClosing, setMobileKeyboardIsClosing] = useState(false);
   const queryInputRef = useRef<HTMLInputElement | null>(null);
 
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -302,12 +326,33 @@ export default function DictionaryPage() {
     const mql = window.matchMedia("(max-width: 768px)");
     const update = () => setIsMobileViewport(mql.matches);
     update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
+    return subscribeToMediaQueryChange(mql, update);
   }, []);
 
   useEffect(() => {
-    setKeyboardEnabled(isCopticKeyboardEnabled());
+    const keyboardIsEnabled = isCopticKeyboardEnabled();
+    const mobileViewport = window.matchMedia("(max-width: 768px)").matches;
+    setKeyboardEnabled(keyboardIsEnabled);
+    setShowKeyboard(keyboardIsEnabled && !mobileViewport ? readCopticKeyboardSessionVisibility(true) : false);
+    const globalBohairicOnly = isBohairicOnlyEnabled();
+    setGlobalBohairicOnlyEnabled(globalBohairicOnly);
+    setBohairicOnly(globalBohairicOnly);
+  }, []);
+
+  useEffect(() => {
+    if (!globalBohairicOnlyEnabled) {
+      return;
+    }
+
+    setBohairicOnly(true);
+  }, [globalBohairicOnlyEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (mobileKeyboardCloseTimerRef.current !== null) {
+        window.clearTimeout(mobileKeyboardCloseTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -337,13 +382,6 @@ export default function DictionaryPage() {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [entries]);
-
-  const displayedPosOptions = useMemo(() => {
-    const q = posSearch.trim().toLowerCase();
-    const base = ["All", ...allPos];
-    if (!q) return base;
-    return base.filter((p) => (p === "All" ? true : p.toLowerCase().includes(q)));
-  }, [allPos, posSearch]);
 
   const filtered = useMemo(() => {
     const q = norm(deferredQuery);
@@ -398,6 +436,28 @@ export default function DictionaryPage() {
 
     return { map, total };
   }, [entries, bohairicOnly, deferredQuery, examplesOnly]);
+
+  const displayedPosOptions = useMemo(() => {
+    const q = posSearch.trim().toLowerCase();
+    const populatedPos = allPos.filter((p) => (posCounts.map.get(p) ?? 0) > 0);
+    const base = ["All", ...populatedPos];
+    if (!q) return base;
+    return base.filter((p) =>
+      p === "All" ? true : getPosLabel(p).toLowerCase().includes(q) || p.toLowerCase().includes(q)
+    );
+  }, [allPos, posCounts, posSearch]);
+
+  useEffect(() => {
+    if (posFilter === "All") {
+      return;
+    }
+
+    if ((posCounts.map.get(posFilter) ?? 0) > 0) {
+      return;
+    }
+
+    setPosFilter("All");
+  }, [posFilter, posCounts]);
 
   const visibleResults = useMemo(
     () => filtered.slice(0, resultsLimit),
@@ -457,7 +517,106 @@ export default function DictionaryPage() {
     event.currentTarget.readOnly = false;
     event.currentTarget.inputMode = "text";
     setShowKeyboard(false);
+    writeCopticKeyboardSessionVisibility(false);
     event.currentTarget.focus({ preventScroll: true });
+  };
+
+  const setKeyboardVisibility = (visible: boolean) => {
+    if (mobileKeyboardCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileKeyboardCloseTimerRef.current);
+      mobileKeyboardCloseTimerRef.current = null;
+    }
+
+    if (visible) {
+      setMobileKeyboardDragY(0);
+      setMobileKeyboardIsDragging(false);
+      setMobileKeyboardIsClosing(false);
+    }
+
+    setShowKeyboard(visible);
+    writeCopticKeyboardSessionVisibility(visible);
+  };
+
+  const closeMobileKeyboardWithAnimation = () => {
+    if (!showKeyboard || !isMobileViewport) {
+      setKeyboardVisibility(false);
+      return;
+    }
+
+    if (mobileKeyboardCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileKeyboardCloseTimerRef.current);
+    }
+
+    setMobileKeyboardIsDragging(false);
+    setMobileKeyboardIsClosing(true);
+    setMobileKeyboardDragY(360);
+    mobileKeyboardCloseTimerRef.current = window.setTimeout(() => {
+      mobileKeyboardCloseTimerRef.current = null;
+      setMobileKeyboardIsClosing(false);
+      setMobileKeyboardDragY(0);
+      setKeyboardVisibility(false);
+    }, 180);
+  };
+
+  const handleMobileKeyboardTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1 || mobileKeyboardIsClosing) {
+      mobileKeyboardTouchStartRef.current = null;
+      setMobileKeyboardIsDragging(false);
+      return;
+    }
+
+    const touch = event.touches[0];
+    mobileKeyboardTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    setMobileKeyboardIsDragging(true);
+  };
+
+  const handleMobileKeyboardTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const start = mobileKeyboardTouchStartRef.current;
+    if (!start || event.touches.length !== 1) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaY = Math.max(0, touch.clientY - start.y);
+    const deltaX = Math.abs(touch.clientX - start.x);
+
+    if (deltaY <= 0 || deltaY < deltaX * 0.35) {
+      setMobileKeyboardDragY(0);
+      return;
+    }
+
+    setMobileKeyboardDragY(Math.min(deltaY, 360));
+  };
+
+  const handleMobileKeyboardTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = mobileKeyboardTouchStartRef.current;
+    mobileKeyboardTouchStartRef.current = null;
+    setMobileKeyboardIsDragging(false);
+
+    if (!start || event.changedTouches.length !== 1) {
+      setMobileKeyboardDragY(0);
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaY = touch.clientY - start.y;
+    const deltaX = Math.abs(touch.clientX - start.x);
+
+    if (deltaY > 60 && deltaY > deltaX * 1.2) {
+      closeMobileKeyboardWithAnimation();
+      return;
+    }
+
+    setMobileKeyboardDragY(0);
+  };
+
+  const handleMobileKeyboardTouchCancel = () => {
+    mobileKeyboardTouchStartRef.current = null;
+    setMobileKeyboardIsDragging(false);
+    setMobileKeyboardDragY(0);
   };
 
   const handleKey = (k: KeyDef) => {
@@ -513,7 +672,7 @@ export default function DictionaryPage() {
       }}
     >
       <div
-        className="mx-auto max-w-5xl px-5 py-8"
+        className="mx-auto max-w-5xl px-5 pb-8 pt-4 md:py-8"
         style={{
           paddingBottom:
             keyboardEnabled && isMobileViewport && showKeyboard
@@ -521,36 +680,7 @@ export default function DictionaryPage() {
               : undefined,
         }}
       >
-        <div className="flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--surface-2)]"
-          >
-            ← Home
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => setBohairicOnly((v) => !v)}
-            className={[
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
-              bohairicOnly
-                ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
-            ].join(" ")}
-            aria-pressed={bohairicOnly}
-          >
-            <span
-              className={[
-                "h-2.5 w-2.5 rounded-full",
-                bohairicOnly ? "bg-emerald-300" : "bg-[var(--text-soft)]",
-              ].join(" ")}
-            />
-            Bohairic-only
-          </button>
-        </div>
-
-        <h1 className="mt-7 text-4xl font-semibold tracking-tight">Coptic Dictionary</h1>
+        <h1 className="mt-0 text-4xl font-semibold tracking-tight">Coptic Dictionary</h1>
         <p className="mt-2 text-[var(--text-muted)]">Search lemma, forms, or gloss</p>
 
         <div className="mt-5 space-y-3">
@@ -574,7 +704,7 @@ export default function DictionaryPage() {
               <span className="text-sm text-[var(--text-muted)]">Coptic keyboard</span>
               <button
                 type="button"
-                onClick={() => setShowKeyboard((v) => !v)}
+                onClick={() => setKeyboardVisibility(!showKeyboard)}
                 className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-sm text-[var(--text-muted)] hover:bg-[var(--surface-2)]"
               >
                 {showKeyboard ? "Hide" : "Show"}
@@ -699,7 +829,7 @@ export default function DictionaryPage() {
               >
                 <span className="text-sm text-[var(--text-muted)]">POS</span>
                 <span className="ml-4 w-full text-left text-sm text-[var(--text-color)]">
-                  {posFilter === "All" ? "All parts of speech" : posFilter}
+                  {posFilter === "All" ? "All parts of speech" : getPosLabel(posFilter)}
                 </span>
                 <span className="ml-3 text-xs text-[var(--text-soft)]">▾</span>
               </button>
@@ -735,7 +865,9 @@ export default function DictionaryPage() {
                           role="option"
                           aria-selected={isSelected}
                         >
-                          <span className="text-sm text-[var(--text-color)]">{p === "All" ? "All parts of speech" : p}</span>
+                          <span className="text-sm text-[var(--text-color)]">
+                            {p === "All" ? "All parts of speech" : getPosLabel(p)}
+                          </span>
                           <span
                             className={[
                               "ml-3 inline-flex min-w-8 items-center justify-center rounded-full border px-2 py-0.5 text-xs",
@@ -754,27 +886,76 @@ export default function DictionaryPage() {
               ) : null}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setExamplesOnly((v) => !v)}
-              className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2 text-sm text-[var(--text-color)]"
-              aria-pressed={examplesOnly}
-            >
-              <span
-                className={[
-                  "relative inline-flex h-7 w-12 rounded-full transition-colors",
-                  examplesOnly ? "bg-[var(--text-muted)]" : "bg-white/25",
-                ].join(" ")}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setExamplesOnly((v) => !v)}
+                className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2 text-sm text-[var(--text-color)]"
+                aria-pressed={examplesOnly}
               >
                 <span
                   className={[
-                    "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
-                    examplesOnly ? "translate-x-6" : "translate-x-1",
+                    "relative inline-flex h-7 w-12 rounded-full transition-colors",
+                    examplesOnly ? "bg-[var(--text-muted)]" : "bg-white/25",
                   ].join(" ")}
-                />
-              </span>
-              Has examples
-            </button>
+                >
+                  <span
+                    className={[
+                      "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
+                      examplesOnly ? "translate-x-6" : "translate-x-1",
+                    ].join(" ")}
+                  />
+                </span>
+                Has examples
+              </button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (globalBohairicOnlyEnabled) {
+                      setBohairicOnly(true);
+                      return;
+                    }
+
+                    setBohairicOnly((current) => !current);
+                  }}
+                  className={[
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                    bohairicOnly
+                      ? ""
+                      : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
+                    globalBohairicOnlyEnabled ? "cursor-not-allowed opacity-80" : "",
+                  ].join(" ")}
+                  style={
+                    bohairicOnly
+                      ? {
+                          borderColor: "var(--bohairic-badge-border)",
+                          background: "var(--bohairic-badge-bg)",
+                          color: "var(--bohairic-badge-text)",
+                        }
+                      : undefined
+                  }
+                  aria-pressed={bohairicOnly}
+                  aria-disabled={globalBohairicOnlyEnabled}
+                  disabled={globalBohairicOnlyEnabled}
+                  title={
+                    globalBohairicOnlyEnabled
+                      ? "Disabled while global Bohairic-only mode is enabled"
+                      : "Toggle Bohairic-only dictionary results"
+                  }
+                  >
+                    <span
+                      className={[
+                        "h-2.5 w-2.5 rounded-full",
+                        bohairicOnly ? "" : "bg-[var(--text-soft)]",
+                    ].join(" ")}
+                    style={bohairicOnly ? { background: "var(--bohairic-badge-dot)" } : undefined}
+                    />
+                  Bohairic-only
+                </button>
+              </div>
+            </div>
 
             <div className="text-sm text-[var(--text-muted)]">
               {loadState === "loading" ? (
@@ -817,17 +998,26 @@ export default function DictionaryPage() {
                       className={[
                         "rounded-full border px-3 py-1 text-xs",
                         e.dialect === "boh"
-                          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
+                          ? ""
                           : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)]",
                       ].join(" ")}
+                      style={
+                        e.dialect === "boh"
+                          ? {
+                              borderColor: "var(--bohairic-badge-border)",
+                              background: "var(--bohairic-badge-bg)",
+                              color: "var(--bohairic-badge-text)",
+                            }
+                          : undefined
+                      }
                     >
                       {e.dialect === "boh" ? "Bohairic" : "Unknown"}
                     </span>
 
-                    {e.pos ? (
-                      <span className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-xs text-[var(--text-muted)]">
-                        {e.pos}
-                      </span>
+	                    {e.pos ? (
+	                      <span className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-xs text-[var(--text-muted)]">
+	                        {getPosLabel(e.pos)}
+	                      </span>
                     ) : null}
                   </div>
 
@@ -910,6 +1100,10 @@ export default function DictionaryPage() {
 
       {keyboardEnabled && isMobileViewport && showKeyboard ? (
         <div
+          onTouchStart={handleMobileKeyboardTouchStart}
+          onTouchMove={handleMobileKeyboardTouchMove}
+          onTouchEnd={handleMobileKeyboardTouchEnd}
+          onTouchCancel={handleMobileKeyboardTouchCancel}
           style={{
             position: "fixed",
             left: 0,
@@ -917,12 +1111,18 @@ export default function DictionaryPage() {
             bottom: 0,
             zIndex: 40,
             padding: "0 10px calc(8px + env(safe-area-inset-bottom, 0px))",
+            touchAction: "none",
+            overscrollBehavior: "contain",
+            transform: `translateY(${mobileKeyboardDragY}px)`,
+            opacity: Math.max(0.72, 1 - mobileKeyboardDragY / 420),
+            transition: mobileKeyboardIsDragging ? "none" : "transform 180ms ease, opacity 180ms ease",
+            willChange: "transform, opacity",
           }}
         >
           <div className="mb-2 flex justify-end">
             <button
               type="button"
-              onClick={() => setShowKeyboard(false)}
+              onClick={closeMobileKeyboardWithAnimation}
               className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
             >
               Hide Coptic keyboard
@@ -1026,10 +1226,10 @@ export default function DictionaryPage() {
       ) : null}
 
       {keyboardEnabled && isMobileViewport && !showKeyboard ? (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="mobile-chin-avoid fixed bottom-4 right-4 z-50">
           <button
             type="button"
-            onClick={() => setShowKeyboard(true)}
+            onClick={() => setKeyboardVisibility(true)}
             className="rounded-full border border-[var(--border-color)] bg-[var(--panel-bg)] px-4 py-2 text-xs font-medium text-[var(--text-color)] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
           >
             Show Coptic keyboard

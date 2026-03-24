@@ -1,7 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { clearAllUnitProgress } from "../learn/progress";
+import { lessons } from "@/lib/lesson";
 import {
   applyCopticFontMode,
   COPTIC_FONT_STORAGE_KEY,
@@ -12,31 +15,41 @@ import {
   isCopticKeyboardEnabled,
 } from "../CopticKeyboardPreference";
 import { applyThemeMode, THEME_STORAGE_KEY, type ThemeMode } from "../ThemePreference";
+import {
+  BOHAIRIC_ONLY_STORAGE_KEY,
+  isBohairicOnlyEnabled,
+} from "../BohairicPreference";
+import { clearProgress } from "@/lib/progress";
+import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
+
+const COPTIC_KEYBOARD_APP_STORE_URL = "https://apps.apple.com/us/app/coptic-keyboard/id1510907422";
 
 export default function SettingsPage() {
-  const [fontMode, setFontMode] = useState<CopticFontMode>("unicode");
+  const router = useRouter();
+  const [fontMode, setFontMode] = useState<CopticFontMode>("avva");
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [keyboardEnabled, setKeyboardEnabled] = useState(true);
+  const [bohairicOnlyEnabled, setBohairicOnlyEnabled] = useState(true);
+  const [devToolsEnabled, setDevToolsEnabled] = useState(false);
+  const [devLessonId, setDevLessonId] = useState(lessons[0]?.id ?? "");
+  const [devStepId, setDevStepId] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
   const [isNarrowLayout, setIsNarrowLayout] = useState(false);
 
   useEffect(() => {
     const savedFont = localStorage.getItem(COPTIC_FONT_STORAGE_KEY);
-    const font: CopticFontMode = savedFont === "avva" ? "avva" : "unicode";
+    const font: CopticFontMode = savedFont === "unicode" ? "unicode" : "avva";
     setFontMode(font);
     applyCopticFontMode(font);
 
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    const theme: ThemeMode =
-      savedTheme === "dark" || savedTheme === "light"
-        ? savedTheme
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
+    const theme: ThemeMode = savedTheme === "dark" || savedTheme === "light" ? savedTheme : "light";
 
     setThemeMode(theme);
     applyThemeMode(theme);
 
     setKeyboardEnabled(isCopticKeyboardEnabled());
+    setBohairicOnlyEnabled(isBohairicOnlyEnabled());
   }, []);
 
   useEffect(() => {
@@ -44,12 +57,29 @@ export default function SettingsPage() {
     const syncNarrowLayout = () => setIsNarrowLayout(mediaQuery.matches);
 
     syncNarrowLayout();
-    mediaQuery.addEventListener("change", syncNarrowLayout);
-
-    return () => {
-      mediaQuery.removeEventListener("change", syncNarrowLayout);
-    };
+    return subscribeToMediaQueryChange(mediaQuery, syncNarrowLayout);
   }, []);
+
+  const selectedLesson = lessons.find((lesson) => lesson.id === devLessonId) ?? lessons[0] ?? null;
+  const selectedLessonSteps =
+    selectedLesson?.progressionGroups?.flatMap((group) => group.lessons).filter((step) => Boolean(step.exerciseSet)) ??
+    [];
+
+  useEffect(() => {
+    if (!selectedLesson) {
+      return;
+    }
+
+    if (selectedLesson.id !== devLessonId) {
+      setDevLessonId(selectedLesson.id);
+      return;
+    }
+
+    const hasSelectedStep = selectedLessonSteps.some((step) => step.id === devStepId);
+    if (!hasSelectedStep) {
+      setDevStepId(selectedLessonSteps[0]?.id ?? "");
+    }
+  }, [devLessonId, devStepId, selectedLesson, selectedLessonSteps]);
 
   const onToggleFont = (nextMode: CopticFontMode) => {
     setFontMode(nextMode);
@@ -66,6 +96,49 @@ export default function SettingsPage() {
   const onToggleKeyboardEnabled = (nextEnabled: boolean) => {
     setKeyboardEnabled(nextEnabled);
     localStorage.setItem(COPTIC_KEYBOARD_ENABLED_STORAGE_KEY, String(nextEnabled));
+  };
+
+  const onToggleBohairicOnlyEnabled = (nextEnabled: boolean) => {
+    setBohairicOnlyEnabled(nextEnabled);
+    localStorage.setItem(BOHAIRIC_ONLY_STORAGE_KEY, String(nextEnabled));
+  };
+
+  const onToggleDevTools = (nextEnabled: boolean) => {
+    setDevToolsEnabled(nextEnabled);
+    if (!nextEnabled) {
+      setResetMessage("");
+    }
+  };
+
+  const onResetProgress = () => {
+    const confirmed = window.confirm("Reset all lesson progress, XP, and streak data on this device?");
+    if (!confirmed) {
+      return;
+    }
+
+    clearProgress();
+    clearAllUnitProgress();
+    setResetMessage("All local learning progress has been reset.");
+  };
+
+  const onOpenLearnMap = () => {
+    router.push("/learn");
+  };
+
+  const onOpenLesson = () => {
+    if (!selectedLesson) {
+      return;
+    }
+
+    router.push(`/learn/${selectedLesson.id}`);
+  };
+
+  const onOpenStep = () => {
+    if (!selectedLesson || !devStepId) {
+      return;
+    }
+
+    router.push(`/learn/${selectedLesson.id}/play/${devStepId}`);
   };
 
   const toggleButtonStyle = (active: boolean) => ({
@@ -105,14 +178,43 @@ export default function SettingsPage() {
     justifySelf: "end",
   } as const;
 
-  return (
-    <main style={{ padding: 24, maxWidth: 900, margin: "0 auto", minHeight: "100vh" }}>
-      <Link href="/" style={{ color: "var(--text-color)", textDecoration: "none", opacity: 0.9 }}>
-        ← Back
-      </Link>
+  const devActionButtonStyle = {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid var(--border-color)",
+    background: "var(--panel-bg)",
+    color: "var(--text-color)",
+    fontWeight: 700,
+    cursor: "pointer",
+  } as const;
 
-      <h1 style={{ marginTop: 12, marginBottom: 8, fontSize: 34, fontWeight: 800 }}>Settings</h1>
-      <p style={{ marginBottom: 24, opacity: 0.85 }}>Customize the app to fit your needs!</p>
+  const devSelectStyle = {
+    minWidth: isNarrowLayout ? "100%" : 280,
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid var(--border-color)",
+    background: "var(--panel-bg)",
+    color: "var(--text-color)",
+    fontFamily: "inherit",
+    fontSize: 14,
+  } as const;
+
+  return (
+    <main
+      style={{
+        padding: 24,
+        maxWidth: 900,
+        margin: "0 auto",
+        minHeight: "100vh",
+        display: "grid",
+        alignContent: "start",
+        gap: 20,
+      }}
+    >
+      <div>
+        <h1 style={{ marginTop: 0, marginBottom: 8, fontSize: 34, fontWeight: 800 }}>Settings</h1>
+        <p style={{ marginBottom: 0, opacity: 0.85 }}>Customize the app to fit your needs!</p>
+      </div>
 
       <section
         style={{
@@ -149,10 +251,28 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div
-          style={toggleRowStyle}
-          aria-label="On-screen Coptic keyboard toggle"
-        >
+        <div style={toggleRowStyle} aria-label="Bohairic-only mode toggle">
+          <span style={toggleLabelStyle}>Global Bohairic-only Mode</span>
+
+          <div style={toggleControlStyle}>
+            <button
+              type="button"
+              onClick={() => onToggleBohairicOnlyEnabled(false)}
+              style={toggleButtonStyle(!bohairicOnlyEnabled)}
+            >
+              Off
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleBohairicOnlyEnabled(true)}
+              style={toggleButtonStyle(bohairicOnlyEnabled)}
+            >
+              On
+            </button>
+          </div>
+        </div>
+
+        <div style={toggleRowStyle} aria-label="On-screen Coptic keyboard toggle">
           <span style={toggleLabelStyle}>On-screen Coptic Keyboard</span>
 
           <div style={toggleControlStyle}>
@@ -172,7 +292,157 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        <div style={toggleRowStyle} aria-label="Developer tools toggle">
+          <span style={toggleLabelStyle}>Developer Tools</span>
+
+          <div style={toggleControlStyle}>
+            <button
+              type="button"
+              onClick={() => onToggleDevTools(false)}
+              style={toggleButtonStyle(!devToolsEnabled)}
+            >
+              Off
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleDevTools(true)}
+              style={toggleButtonStyle(devToolsEnabled)}
+            >
+              On
+            </button>
+          </div>
+        </div>
+
+        {devToolsEnabled ? (
+          <div
+            style={{
+              borderTop: "1px solid var(--border-color)",
+              paddingTop: 18,
+              display: "grid",
+              gap: 12,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Reset all progress</div>
+              <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.8 }}>
+                Clears lesson completion, XP, and streak data stored in this browser.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={onResetProgress}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #c85e5e",
+                  background: "#b23a3a",
+                  color: "#fff",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Reset Progress
+              </button>
+
+              {resetMessage ? (
+                <span style={{ fontSize: 13, color: "var(--text-color)", opacity: 0.82 }}>{resetMessage}</span>
+              ) : null}
+            </div>
+
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Jump around</div>
+              <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.8 }}>
+                Open the learn map, a unit page, or a playable lesson step directly.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+              <button type="button" onClick={onOpenLearnMap} style={devActionButtonStyle}>
+                Open Learn Map
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+              <select
+                aria-label="Select lesson"
+                value={selectedLesson?.id ?? ""}
+                onChange={(event) => setDevLessonId(event.target.value)}
+                style={devSelectStyle}
+              >
+                {lessons.map((lesson) => (
+                  <option key={lesson.id} value={lesson.id}>
+                    {lesson.sectionTitle} - Unit {lesson.unitNumber}: {lesson.title.replace(/^Unit \d+: /, "")}
+                  </option>
+                ))}
+              </select>
+
+              <button type="button" onClick={onOpenLesson} style={devActionButtonStyle} disabled={!selectedLesson}>
+                Open Unit
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+              <select
+                aria-label="Select lesson step"
+                value={devStepId}
+                onChange={(event) => setDevStepId(event.target.value)}
+                style={devSelectStyle}
+                disabled={selectedLessonSteps.length === 0}
+              >
+                {selectedLessonSteps.length > 0 ? (
+                  selectedLessonSteps.map((step) => (
+                    <option key={step.id} value={step.id}>
+                      {step.title}: {step.summary}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No playable steps yet</option>
+                )}
+              </select>
+
+              <button
+                type="button"
+                onClick={onOpenStep}
+                style={devActionButtonStyle}
+                disabled={!selectedLesson || !devStepId}
+              >
+                Open Step
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
+
+      <div
+        style={{
+          display: "grid",
+          justifyItems: "center",
+          gap: 10,
+          paddingTop: 4,
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.8, textAlign: "center" }}>
+          Prefer the system Coptic keyboard?
+        </p>
+        <a
+          href={COPTIC_KEYBOARD_APP_STORE_URL}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Download the Coptic Keyboard app on the App Store"
+          style={{ display: "inline-flex", lineHeight: 0 }}
+        >
+          <Image
+            src="/download-on-the-app-store-badge.svg"
+            alt="Download on the App Store"
+            width={180}
+            height={60}
+            style={{ width: 180, height: "auto", display: "block" }}
+          />
+        </a>
+      </div>
     </main>
   );
 }

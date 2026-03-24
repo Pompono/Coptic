@@ -1,7 +1,9 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
+import AudioUnlock from "./AudioUnlock";
 import CopticFontPreference from "./CopticFontPreference";
+import MobileChinDock from "./MobileChinDock";
 import ThemePreference, { themeInitScript } from "./ThemePreference";
 
 export const metadata: Metadata = {
@@ -20,10 +22,12 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
+        <AudioUnlock />
         <CopticFontPreference />
         <ThemePreference />
-        {children}
+        <div className="mobile-chin-page-shell">{children}</div>
+        <MobileChinDock />
       </body>
     </html>
   );
-  }
+}

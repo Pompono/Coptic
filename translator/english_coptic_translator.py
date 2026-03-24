@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
@@ -8,17 +8,7 @@ import numpy as np
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-
 SAHIDIC_TAG = "з"
-
-GENERATION_KWARGS = {
-    "max_new_tokens": 128,
-    "min_new_tokens": 1,
-    "early_stopping": True,
-    "num_beams": 5,
-    "output_scores": True,
-    "return_dict_in_generate": True,
-}
 
 GREEK_TO_COPTIC = {
     "α": "ⲁ",
@@ -59,6 +49,17 @@ GREEK_TO_COPTIC = {
 
 GREEK_TO_COPTIC.update({k.upper(): v.upper() for k, v in list(GREEK_TO_COPTIC.items()) if k.isalpha()})
 
+BOHAIRIC_NORMALIZATION_MAP = {
+    "ϫⲟⲉⲓⲥ": "ϭⲟⲓⲥ",
+    "ⲡⲁϫⲟⲉⲓⲥ": "ⲡⲁϭⲟⲓⲥ",
+    "ⲓⲏⲥⲩⲥ": "ⲓⲏⲥⲟⲩⲥ",
+    "ⲓⲉⲥⲟⲩⲥ": "ⲓⲏⲥⲟⲩⲥ",
+    "ⲡⲉϭⱣⲓⲥⲧⲟⲥ": "ⲡⲓϭⱣⲓⲥⲧⲟⲥ",
+    "ⲡⲛⲛⲟⲩⲧⲉ": "ⲛ̀ⲛⲟⲩϯ",
+    "ⲡϣⲏⱣⲓ": "ⲡϣⲏⱣⲓ",
+    "ⲡϣⲏⱣⲓ ⲛⲛⲟⲩⲧⲉ": "ⲡϣⲏⱣⲓ ⲛ̀ⲛⲟⲩϯ",
+}
+
 
 class TranslatorError(RuntimeError):
     """Base translator error."""
@@ -97,6 +98,17 @@ def copticify(text: str) -> str:
     return "".join(GREEK_TO_COPTIC.get(ch, ch) for ch in text)
 
 
+def normalize_bohairic_output(text: str, dialect: str) -> str:
+    if dialect != "bohairic":
+        return text
+
+    normalized = text
+    for source, target in BOHAIRIC_NORMALIZATION_MAP.items():
+        normalized = normalized.replace(source, target)
+        normalized = normalized.replace(source.upper(), target.upper())
+    return normalized
+
+
 class EnglishCopticTranslator:
     def __init__(self, model_name: str = "megalaa/english-coptic-translator") -> None:
         try:
@@ -125,12 +137,21 @@ class EnglishCopticTranslator:
 
         try:
             input_tensors = self.tokenizer.encode(processed.tagged_text, return_tensors="pt")
+            generation_kwargs: dict[str, Any] = {}
+            if include_confidence:
+                generation_kwargs["output_scores"] = True
+                generation_kwargs["return_dict_in_generate"] = True
+
             outputs = self.model.generate(
                 input_tensors[:, : self.tokenizer.model_max_length],
-                **GENERATION_KWARGS,
+                **generation_kwargs,
             )
-            decoded = self.tokenizer.decode(outputs.sequences[0], skip_special_tokens=True).strip()
-            translation = copticify(decoded)
+            sequence = outputs.sequences[0] if include_confidence else outputs[0]
+            decoded = self.tokenizer.decode(sequence, skip_special_tokens=True).strip()
+            translation = normalize_bohairic_output(
+                copticify(decoded),
+                processed.dialect,
+            )
         except Exception as exc:  # noqa: BLE001
             raise TranslatorRuntimeError(f"translation failed: {exc}") from exc
 

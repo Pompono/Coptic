@@ -1,16 +1,15 @@
-// app/learn/[lessonId]/page.tsx
 import Link from "next/link";
 import { lessons } from "@/lib/lesson";
-import LessonClient from "./LessonClient";
+import UnitProgressClient from "./UnitProgressClient";
 
-export default async function LessonPage({
+export default async function UnitPage({
   params,
 }: {
   params: Promise<{ lessonId: string }>;
 }) {
   const { lessonId } = await params;
 
-  const lesson = lessons.find((l) => l.id === lessonId);
+  const lesson = lessons.find((entry) => entry.id === lessonId);
 
   if (!lesson) {
     return (
@@ -22,17 +21,8 @@ export default async function LessonPage({
           color: "var(--text-color)",
         }}
       >
-        <h1 style={{ fontSize: 40, marginBottom: 8 }}>Lesson not found</h1>
-
-        <p style={{ opacity: 0.85 }}>
-          Tried id: <code>{lessonId}</code>
-        </p>
-
-        <p style={{ opacity: 0.85, marginTop: 10 }}>
-          Available lesson ids:{" "}
-          <code>{lessons.map((l) => l.id).join(", ") || "(none)"}</code>
-        </p>
-
+        <h1 style={{ fontSize: 40, marginBottom: 8 }}>Unit not found</h1>
+        <p style={{ opacity: 0.85 }}>Tried id: <code>{lessonId}</code></p>
         <p style={{ marginTop: 14 }}>
           <Link
             href="/learn"
@@ -46,12 +36,12 @@ export default async function LessonPage({
               fontWeight: 700,
             }}
           >
-            ← Back
+            {"←"} Back
           </Link>
         </p>
       </main>
     );
   }
 
-  return <LessonClient lessonId={lessonId} />;
+  return <UnitProgressClient focusLessonId={lesson.id} />;
 }

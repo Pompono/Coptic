@@ -48,3 +48,21 @@ Example JSON output:
   "dialect": "bohairic"
 }
 ```
+
+## Phone testing
+
+If you open the app on your phone using your computer's local network IP, avoid `next dev` unless you specifically need hot reload.
+
+For smoother phone testing, use the production preview:
+
+```bash
+npm run preview:phone
+```
+
+On Windows, you can also use:
+
+```bash
+start-phone-preview.bat
+```
+
+`start-local-and-tunnel.bat` starts the dev server, which is expected to feel much slower on mobile.

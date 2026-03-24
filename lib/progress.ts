@@ -7,18 +7,27 @@ type Progress = {
 
 const KEY = "coptic-progress";
 
+function createDefaultProgress(): Progress {
+  return {
+    xp: 0,
+    streak: 0,
+    lastCompletedDate: null,
+    completedLessons: [],
+  };
+}
+
 function getToday() {
   return new Date().toISOString().split("T")[0];
 }
 
 export function getProgress(): Progress {
   if (typeof window === "undefined") {
-    return { xp: 0, streak: 0, lastCompletedDate: null, completedLessons: [] };
+    return createDefaultProgress();
   }
 
   const stored = localStorage.getItem(KEY);
   if (!stored) {
-    return { xp: 0, streak: 0, lastCompletedDate: null, completedLessons: [] };
+    return createDefaultProgress();
   }
 
   return JSON.parse(stored);
@@ -50,4 +59,12 @@ export function addXpAndAdvanceStreak({
   }
 
   saveProgress(progress);
+}
+
+export function clearProgress() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem(KEY);
 }

@@ -24,7 +24,7 @@ function toDialect(value: unknown, fallback: Dialect): Dialect {
 }
 
 function runTranslatorCLI(args: string[]): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  const pythonBin = process.env.COPTIC_TRANSLATOR_PYTHON_BIN || "python3";
+  const pythonBin = process.env.COPTIC_TRANSLATOR_PYTHON_BIN || (process.platform === "win32" ? path.join(process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || "", "AppData", "Local"), "Programs", "Python", "Python312", "python.exe") : "python3");
   const scriptPath = path.join(process.cwd(), "translator", "cli.py");
 
   return new Promise((resolve, reject) => {
@@ -116,3 +116,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

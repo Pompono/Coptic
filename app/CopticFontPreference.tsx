@@ -12,7 +12,7 @@ export function applyCopticFontMode(mode: CopticFontMode) {
 export default function CopticFontPreference() {
   useEffect(() => {
     const saved = localStorage.getItem(COPTIC_FONT_STORAGE_KEY);
-    const mode: CopticFontMode = saved === "avva" ? "avva" : "unicode";
+    const mode: CopticFontMode = saved === "unicode" ? "unicode" : "avva";
     applyCopticFontMode(mode);
   }, []);
 
