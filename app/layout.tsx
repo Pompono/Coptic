@@ -9,6 +9,10 @@ import ThemePreference, { themeInitScript } from "./ThemePreference";
 export const metadata: Metadata = {
   title: "Coptic",
   description: "Coptic learning + dictionary",
+  icons: {
+    icon: [{ url: "/favicon.png", type: "image/png", sizes: "32x32" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

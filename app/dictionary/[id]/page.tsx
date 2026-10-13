@@ -1,10 +1,11 @@
 import DictionaryEntryClient from "./DictionaryEntryClient";
 
-export default function DictionaryEntryPage({
+export default async function DictionaryEntryPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const lemma = decodeURIComponent(params.id);
+  const { id } = await params;
+  const lemma = decodeURIComponent(id);
   return <DictionaryEntryClient lemma={lemma} />;
 }
