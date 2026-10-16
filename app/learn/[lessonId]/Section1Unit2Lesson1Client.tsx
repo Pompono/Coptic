@@ -1,379 +1,55 @@
 "use client";
+import {RecordingCard} from "@/app/AudioReplay";
+import {lessonActionPressHandlers} from '@/lib/inputFocus';
 
-import Link from "next/link";
+import { COPTIC, QUESTIONS, type LessonQuestion, type ImageChoice } from "@/lib/learning/wordLesson1";
+import { LearningSession, LessonExplanation, useLearningSession } from "../learning/LearningSession";
+import { itemsForQuestion } from "@/lib/learning/content";
+import { LESSON_THEME } from "@/lib/lessonTheme";
+
+import Link from "@/lib/AppLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { audioService } from "@/lib/audioService";
+import { audioService, reportAudioFailure } from "@/lib/audioService";
 import { resolveLessonAudio } from "../../../lib/lessonAudio";
 import { clearStepFailed, markStepCompleted, markStepFailed } from "../progress";
 import { type Lesson, type UnitLessonStep } from "../../../lib/lesson";
 
-type ImageChoice = {
-  id: string;
-  label: string;
-  art: "man" | "water" | "big" | "rice" | "bread";
-};
-
-type LessonQuestion =
-  | {
-      id: string;
-      kind: "sound_mcq";
-      prompt: string;
-      text: string;
-      choices: string[];
-      answer: string;
-      audioId: string;
-    }
-  | {
-      id: string;
-      kind: "letter_mcq";
-      prompt: string;
-      sound: string;
-      choices: string[];
-      answer: string;
-      audioId: string;
-    }
-  | {
-      id: string;
-      kind: "listening_mcq";
-      prompt: string;
-      audio: string;
-      choices: string[];
-      answer: string;
-      audioId: string;
-    }
-  | {
-      id: string;
-      kind: "image_vocab";
-      prompt: string;
-      text: string;
-      meaning: string;
-      choices: ImageChoice[];
-      answer: string;
-      audioId: string;
-      newWord: true;
-    }
-  | {
-      id: string;
-      kind: "translate";
-      prompt: string;
-      text: string;
-      answer: string;
-      acceptedAnswers?: string[];
-      audioId: string;
-      newWord: true;
-    }
-  | {
-      id: string;
-      kind: "word_bank";
-      prompt: string;
-      text: string;
-      choices: string[];
-      answer: string;
-      audioId: string;
-      newWord: true;
-    }
-  | {
-      id: string;
-      kind: "breakdown";
-      prompt: string;
-      text: string;
-      mapping: Array<{ coptic: string; meaning: string }>;
-      audioId: string;
-      newWord: true;
-    }
-  | {
-      id: string;
-      kind: "meaning_mcq";
-      prompt: string;
-      text: string;
-      choices: string[];
-      answer: string;
-      audioId: string;
-      newWord: true;
-    };
-
-const COPTIC = {
-  ma: "\u2C99\u2C81",
-  me: "\u2C99\u2C89",
-  mi: "\u2C99\u2C93",
-  mo: "\u2C99\u2C9F",
-  na: "\u2C9B\u2C81",
-  ro: "\u2CA3\u2C9F",
-  ra: "\u2CA3\u2C81",
-  ri: "\u2CA3\u2C93",
-  re: "\u2CA3\u2C89",
-  pi: "\u2CA1\u2C93",
-  pa: "\u2CA1\u2C81",
-  po: "\u2CA1\u2C9F",
-  piromi: "\u2CA1\u2C93\u2CA3\u2CB1\u2C99\u2C93",
-  pimoou: "\u2CA1\u2C93\u2C99\u2CB1\u2C9F\u2CA9",
-  the: "\u2CA1\u2C93",
-  water: "\u2C99\u2CB1\u2C9F\u2CA9",
-  mina: "\u2C98\u2C8F\u2C9B\u2C81",
-  markos: "\u2C98\u2C81\u2CA3\u2C95\u2C9F\u2CA5",
-} as const;
-
-const ART: Record<ImageChoice["art"], string> = {
-  man: "\uD83D\uDC68",
-  water: "\uD83D\uDCA7",
-  big: "\uD83D\uDC18",
-  rice: "\uD83C\uDF5A",
-  bread: "\uD83C\uDF5E",
-};
+function VocabularyArt({ art, size }: { art: ImageChoice["art"]; size:number }) {
+  const drawing = art === "man" ? <><circle cx="32" cy="17" r="9"/><path d="M14 56v-8c0-12 8-19 18-19s18 7 18 19v8M23 45v11M41 45v11"/></>
+    : art === "water" ? <><path d="M32 6C25 19 14 30 14 40a18 18 0 0 0 36 0C50 30 39 19 32 6Z"/><path d="M23 40c0 6 4 10 9 10"/></>
+    : art === "bread" ? <><path d="M8 45V30c0-14 11-21 24-21s24 7 24 21v15c0 6-4 10-10 10H18c-6 0-10-4-10-10Z"/><path d="m22 19-4 9m16-11-4 10m15-7-4 10"/></>
+    : art === "rice" ? <><path d="M8 32h48c0 16-10 23-24 23S8 48 8 32ZM13 27c1-6 5-9 10-9 2-6 9-9 15-4 6-2 12 3 13 10"/><path d="m20 24 3 2m7-4 3 2m7-2 3 2"/></>
+    : <><path d="M12 45V23h40v22M12 23l8-9m-8 9 8 9m32-9-8-9m8 9-8 9M12 50h40"/><path d="M26 35h12v10H26Z"/></>;
+  return <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{drawing}</svg>;
+}
 
 const SUCCESS_MESSAGES = ["Awesome!", "Excellent!", "Nice!", "Well done!", "Perfect!"] as const;
 
-const LESSON_THEME = {
-  bgTop: "#ded9c9",
-  bgBottom: "#d6d1c0",
-  textPrimary: "#2b4160",
-  textSecondary: "rgba(43, 65, 96, 0.76)",
-  progressTrack: "rgba(43, 65, 96, 0.16)",
-  progressStart: "#687e9d",
-  progressEnd: "#2b4160",
-  cardTop: "#cfd9e6",
-  cardBottom: "#bbc9dc",
-  cardInset: "rgba(94, 113, 136, 0.46)",
-  cardText: "#2b4160",
-  choiceBorder: "rgba(43, 65, 96, 0.16)",
-  choiceBg: "rgba(255, 255, 255, 0.34)",
-  choiceSelectedBorder: "#6d84a3",
-  choiceSelectedBg: "rgba(92, 112, 139, 0.14)",
-  choiceSelectedText: "#2b4160",
-  choiceCorrectBorder: "#7d8f62",
-  choiceCorrectBg: "rgba(125, 143, 98, 0.12)",
-  choiceCorrectText: "#3f5632",
-  choiceWrongBorder: "#b57b74",
-  choiceWrongBg: "rgba(137, 72, 66, 0.16)",
-  choiceWrongText: "#7b4a45",
-  actionBg: "#2b4160",
-  actionInset: "#1f3148",
-  actionText: "#dcd8c8",
-  actionDisabledBg: "rgba(93, 107, 123, 0.48)",
-  actionDisabledText: "rgba(226, 236, 245, 0.32)",
-  successBg: "rgba(95, 121, 72, 0.18)",
-  successBorder: "rgba(125, 151, 96, 0.3)",
-  errorBg: "rgba(126, 73, 68, 0.18)",
-  errorBorder: "rgba(181, 123, 116, 0.28)",
-  inputBg: "rgba(255, 255, 255, 0.4)",
-  inputBorder: "rgba(43, 65, 96, 0.18)",
-  badgeBg: "rgba(132, 98, 168, 0.12)",
-  badgeText: "#735391",
-  wordBankBorder: "rgba(43, 65, 96, 0.14)",
-  wordBankBg: "rgba(255, 255, 255, 0.26)",
-} as const;
 
-const QUESTIONS: LessonQuestion[] = [
-  {
-    id: "u2l1-1",
-    kind: "sound_mcq",
-    prompt: "What sound does this make?",
-    text: COPTIC.ma,
-    choices: ["ma", "na", "mo"],
-    answer: "ma",
-    audioId: "ma",
-  },
-  {
-    id: "u2l1-2",
-    kind: "letter_mcq",
-    prompt: 'Select the correct letters for "ma"',
-    sound: "ma",
-    choices: [COPTIC.me, COPTIC.na, COPTIC.ma, COPTIC.mo],
-    answer: COPTIC.ma,
-    audioId: "ma",
-  },
-  {
-    id: "u2l1-3",
-    kind: "listening_mcq",
-    prompt: "What do you hear?",
-    audio: COPTIC.ma,
-    choices: [COPTIC.mo, COPTIC.ma, COPTIC.na, COPTIC.me],
-    answer: COPTIC.ma,
-    audioId: "ma",
-  },
-  {
-    id: "u2l1-4",
-    kind: "sound_mcq",
-    prompt: "What sound does this make?",
-    text: COPTIC.ro,
-    choices: ["ri", "ra", "ro"],
-    answer: "ro",
-    audioId: COPTIC.ro,
-  },
-  {
-    id: "u2l1-5",
-    kind: "letter_mcq",
-    prompt: 'Select the correct letters for "ro"',
-    sound: "ro",
-    choices: [COPTIC.ra, COPTIC.ri, COPTIC.ro, COPTIC.re],
-    answer: COPTIC.ro,
-    audioId: COPTIC.ro,
-  },
-  {
-    id: "u2l1-6",
-    kind: "listening_mcq",
-    prompt: "What do you hear?",
-    audio: COPTIC.ro,
-    choices: [COPTIC.ra, COPTIC.ri, COPTIC.ro, COPTIC.mo],
-    answer: COPTIC.ro,
-    audioId: COPTIC.ro,
-  },
-  {
-    id: "u2l1-7",
-    kind: "sound_mcq",
-    prompt: "What sound does this make?",
-    text: COPTIC.mi,
-    choices: ["mi", "ma", "mo"],
-    answer: "mi",
-    audioId: COPTIC.mi,
-  },
-  {
-    id: "u2l1-8",
-    kind: "letter_mcq",
-    prompt: 'Select the correct letters for "mi"',
-    sound: "mi",
-    choices: [COPTIC.mi, COPTIC.ma, COPTIC.pi, COPTIC.ri],
-    answer: COPTIC.mi,
-    audioId: COPTIC.mi,
-  },
-  {
-    id: "u2l1-9",
-    kind: "sound_mcq",
-    prompt: "What sound does this make?",
-    text: COPTIC.pi,
-    choices: ["pi", "pa", "po"],
-    answer: "pi",
-    audioId: COPTIC.pi,
-  },
-  {
-    id: "u2l1-10",
-    kind: "letter_mcq",
-    prompt: 'Select the correct letters for "pi"',
-    sound: "pi",
-    choices: [COPTIC.pa, COPTIC.po, COPTIC.pi, COPTIC.mi],
-    answer: COPTIC.pi,
-    audioId: COPTIC.pi,
-  },
-  {
-    id: "u2l1-11",
-    kind: "image_vocab",
-    prompt: "Select the correct image",
-    text: COPTIC.piromi,
-    meaning: "the man",
-    choices: [
-      { id: "the man", label: "the man", art: "man" },
-      { id: "the water", label: "the water", art: "water" },
-      { id: "big", label: "big", art: "big" },
-      { id: "the rice", label: "the rice", art: "rice" },
-    ],
-    answer: "the man",
-    audioId: COPTIC.piromi,
-    newWord: true,
-  },
-  {
-    id: "u2l1-12",
-    kind: "image_vocab",
-    prompt: "Select the correct image",
-    text: COPTIC.pimoou,
-    meaning: "the water",
-    choices: [
-      { id: "big", label: "big", art: "big" },
-      { id: "the rice", label: "the rice", art: "rice" },
-      { id: "the water", label: "the water", art: "water" },
-      { id: "the bread", label: "the bread", art: "bread" },
-    ],
-    answer: "the water",
-    audioId: COPTIC.pimoou,
-    newWord: true,
-  },
-  {
-    id: "u2l1-13",
-    kind: "translate",
-    prompt: "Translate this sentence",
-    text: COPTIC.mina,
-    answer: "Mina",
-    audioId: COPTIC.mina,
-    newWord: true,
-  },
-  {
-    id: "u2l1-14",
-    kind: "translate",
-    prompt: "Translate this sentence",
-    text: COPTIC.markos,
-    answer: "Markos",
-    acceptedAnswers: ["Markos", "markos", "Mark", "mark"],
-    audioId: COPTIC.markos,
-    newWord: true,
-  },
-  {
-    id: "u2l1-15",
-    kind: "word_bank",
-    prompt: "Translate this sentence",
-    text: COPTIC.pimoou,
-    choices: ["the", "water", "rice", "and"],
-    answer: "the water",
-    audioId: COPTIC.pimoou,
-    newWord: true,
-  },
-  {
-    id: "u2l1-17",
-    kind: "meaning_mcq",
-    prompt: "What does this mean?",
-    text: COPTIC.piromi,
-    choices: ["the man", "the water", "rice", "big"],
-    answer: "the man",
-    audioId: COPTIC.piromi,
-    newWord: true,
-  },
-  {
-    id: "u2l1-18",
-    kind: "meaning_mcq",
-    prompt: "What does this mean?",
-    text: COPTIC.pimoou,
-    choices: ["the water", "the man", "rice", "yes"],
-    answer: "the water",
-    audioId: COPTIC.pimoou,
-    newWord: true,
-  },
-];
 
 function containsCoptic(text: string) {
   return /[\u2C80-\u2CFF\u03E2-\u03EF]/.test(text);
 }
 
 function normalizeAnswer(input: string) {
-  return input.trim().replace(/\s+/g, " ").toLowerCase();
+  return input.normalize("NFKC").trim().replace(/[.!?,:;]+$/u, "").replace(/\s+/g, " ").toLowerCase();
 }
 
-function speakFallback(text: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window) || !text) {
-    return;
-  }
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
-  utterance.rate = 0.82;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-}
 
 function playLessonAudio(lessonId: string, audioId: string, fallbackText: string) {
   const entry = resolveLessonAudio(lessonId, audioId);
-  const spokenFallback = entry?.fallbackText ?? fallbackText;
 
   if (typeof window === "undefined") {
     return;
   }
 
   if (entry?.src) {
-    void audioService.play(entry.src, entry.src).catch(() => {
-      speakFallback(spokenFallback);
-    });
+    void audioService.play(entry.src, entry.src).catch(reportAudioFailure);
     return;
   }
 
-  speakFallback(spokenFallback);
+  reportAudioFailure(new Error(`No bundled recording is available for "${audioId}".`));
 }
 
 function getQuestionAudioId(question: LessonQuestion) {
@@ -409,16 +85,7 @@ function getExpectedAnswer(question: LessonQuestion) {
   return question.answer;
 }
 
-function IconSpeaker({ size = 28 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M14 3.2a1 1 0 0 1 1.7.7v16.2a1 1 0 0 1-1.7.7L8.7 15H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3.7L14 3.2Zm4.8 3.5a1 1 0 0 1 1.4.1 8.1 8.1 0 0 1 0 10.4 1 1 0 0 1-1.5-1.3 6.1 6.1 0 0 0 0-7.8 1 1 0 0 1 .1-1.4Zm-2.9 2.2a1 1 0 0 1 1.4.1 4.5 4.5 0 0 1 0 6 1 1 0 0 1-1.5-1.3 2.5 2.5 0 0 0 0-3.4 1 1 0 0 1 .1-1.4Z"
-      />
-    </svg>
-  );
-}
+
 
 function IconClose({ size = 28 }: { size?: number }) {
   return (
@@ -453,19 +120,17 @@ function LessonOutcomeCelebration({
   subtitle: string;
   icon: "check" | "cross";
 }) {
-  const outcomeRingBorder = "rgba(43, 65, 96, 0.14)";
-  const outcomeOuterBackground =
-    "radial-gradient(circle at center, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 70%), linear-gradient(180deg, rgba(235, 230, 218, 0.92) 0%, rgba(221, 214, 198, 0.72) 100%)";
-  const outcomeInnerBorder = "rgba(43, 65, 96, 0.08)";
-  const outcomeCoreBackground = "linear-gradient(180deg, #40597a 0%, #2b4160 100%)";
-  const outcomeCoreShadow =
-    "inset 0 -8px 0 rgba(20, 32, 48, 0.24), 0 8px 18px rgba(43, 65, 96, 0.12)";
-  const outcomeKickerColor = "rgba(43, 65, 96, 0.62)";
-  const outcomeSubtitleColor = "rgba(43, 65, 96, 0.62)";
+  const outcomeRingBorder = "var(--border-color)";
+  const outcomeOuterBackground = "var(--surface-1)";
+  const outcomeInnerBorder = "var(--border-color)";
+  const outcomeCoreBackground = "var(--teal-surface)";
+  const outcomeCoreShadow = "none";
+  const outcomeKickerColor = "var(--text-muted)";
+  const outcomeSubtitleColor = "var(--text-muted)";
 
   return (
     <>
-      <main className="lesson-outcome-screen">
+      <main className={`lesson-outcome-screen ${icon === "cross" ? "is-failure" : ""}`}>
         <div className="lesson-outcome-shell">
           <div className="lesson-outcome-stage" aria-hidden="true">
             <div className="lesson-outcome-badge">
@@ -513,7 +178,7 @@ function LessonOutcomeCelebration({
 
       <style jsx global>{`
         .lesson-outcome-screen {
-          min-height: 100dvh;
+          min-height: var(--page-content-height);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -555,18 +220,18 @@ function LessonOutcomeCelebration({
         .lesson-outcome-ring {
           position: absolute;
           border-radius: 999px;
-          border: 2px solid ${outcomeRingBorder};
+          border: 2px solid var(--lesson-outcome-ring-border, ${outcomeRingBorder});
         }
 
         .lesson-outcome-ring-outer {
           inset: 0;
-          background: ${outcomeOuterBackground};
+          background: var(--lesson-outcome-outer, ${outcomeOuterBackground});
           box-shadow: 0 18px 36px rgba(43, 65, 96, 0.1);
         }
 
         .lesson-outcome-ring-inner {
           inset: 14px;
-          border: 10px solid ${outcomeInnerBorder};
+          border: 10px solid var(--lesson-outcome-inner-border, ${outcomeInnerBorder});
         }
 
         .lesson-outcome-core {
@@ -592,7 +257,7 @@ function LessonOutcomeCelebration({
           font-weight: 800;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          color: ${outcomeKickerColor};
+          color: var(--lesson-outcome-muted, ${outcomeKickerColor});
         }
 
         .lesson-outcome-message {
@@ -610,7 +275,7 @@ function LessonOutcomeCelebration({
           margin: -2px 0 0;
           font-size: 16px;
           line-height: 1.5;
-          color: ${outcomeSubtitleColor};
+          color: var(--lesson-outcome-muted, ${outcomeSubtitleColor});
           text-align: center;
           animation: lesson-outcome-subtitle-rise 1900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
@@ -749,6 +414,7 @@ export default function Section1Unit2Lesson1Client({
   lesson: Lesson;
   step: UnitLessonStep;
 }) {
+  const learning = useLearningSession();
   const router = useRouter();
   const audioUnlockedRef = useRef(false);
   const [viewport, setViewport] = useState({ width: 1280, height: 900 });
@@ -799,14 +465,14 @@ export default function Section1Unit2Lesson1Client({
         : "16px 18px"
     : "18px 20px";
   const resultPadding = compactPhone ? (tinyPhone ? 10 : ultraCompactPhone ? 12 : 14) : 18;
-  const footerShellMinHeight = compactPhone ? (tinyPhone ? 66 : ultraCompactPhone ? 114 : 124) : 156;
-  const promptRowHeight = compactPhone ? (tinyPhone ? 56 : ultraCompactPhone ? 70 : 82) : 116;
+  const footerShellMinHeight = compactPhone ? 76 : 100;
+  const promptRowHeight = compactPhone ? (tinyPhone ? 52 : 64) : 96;
   const slidePanelGap = compactPhone ? (tinyPhone ? 12 : ultraCompactPhone ? 14 : 16) : 20;
   const desktopSlideViewportHeight = 520;
   const imageChoiceMinHeight = compactPhone ? (tinyPhone ? 126 : ultraCompactPhone ? 142 : 150) : 236;
   const imageArtSize = compactPhone ? (tinyPhone ? 44 : ultraCompactPhone ? 50 : 56) : 72;
   const imageLabelFontSize = compactPhone ? (tinyPhone ? 14 : 16) : 20;
-  const progress = Math.max(0.08, index / QUESTIONS.length);
+  const progress = learning.progress(Math.min(index + (resultState === "correct" ? 1 : 0), QUESTIONS.length), QUESTIONS.length);
   const stageUsesTwoColumn =
     desktopLayout &&
     (question.kind === "sound_mcq" ||
@@ -902,7 +568,7 @@ export default function Section1Unit2Lesson1Client({
 
   const nextQuestion = () => {
     if (index >= QUESTIONS.length - 1) {
-      setIsComplete(true);
+      learning.finish(QUESTIONS.length);
       return;
     }
 
@@ -938,6 +604,8 @@ export default function Section1Unit2Lesson1Client({
         correct = normalizeAnswer(selectedWords.join(" ")) === normalizeAnswer(question.answer);
         break;
     }
+
+    learning.record(question.id, itemsForQuestion(question), correct);
 
     if (correct) {
       playLessonAudio(step.id, "correct-answer", "");
@@ -981,11 +649,7 @@ export default function Section1Unit2Lesson1Client({
     const labelIsCoptic = label ? containsCoptic(label) : false;
 
     return (
-      <button
-        type="button"
-        className="lesson-tap-target lesson-audio-card"
-        onClick={playCurrentAudio}
-        style={{
+      <RecordingCard path={resolveLessonAudio(step.id,questionAudioId)?.src} label={label} coptic={labelIsCoptic} onPlay={playCurrentAudio} fontSize={labelIsCoptic?cardLabelFontSize:compactPhone?54:68} style={{
           width: "100%",
           maxWidth: desktopLayout ? 420 : 380,
           minHeight: cardMinHeight,
@@ -1003,36 +667,7 @@ export default function Section1Unit2Lesson1Client({
           textAlign: "center",
           transform: "translateY(0)",
           transition: "transform 150ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-      >
-        {label ? (
-          <span
-            className={labelIsCoptic ? "coptic-text" : undefined}
-            style={{
-              fontSize: labelIsCoptic ? cardLabelFontSize : compactPhone ? 54 : 68,
-              lineHeight: 1,
-              fontWeight: 700,
-              letterSpacing: labelIsCoptic ? 0 : "-0.02em",
-            }}
-          >
-            {label}
-          </span>
-        ) : (
-          <span style={{ transform: `scale(${compactPhone ? 1.3 : 1.55})` }}>
-            <IconSpeaker size={compactPhone ? 34 : 38} />
-          </span>
-        )}
-
-        <span
-          style={{
-            position: "absolute",
-            right: compactPhone ? 16 : 22,
-            bottom: compactPhone ? 14 : 18,
-          }}
-        >
-          <IconSpeaker size={compactPhone ? 26 : 32} />
-        </span>
-      </button>
+        }}/>
     );
   };
 
@@ -1102,10 +737,10 @@ export default function Section1Unit2Lesson1Client({
       question.kind === "listening_mcq" ||
       question.kind === "meaning_mcq"
     ) {
-      const singleColumn = question.kind === "sound_mcq" && question.choices.length <= 3;
+      const singleColumn = question.choices.length <= 3;
 
       return (
-        <div
+        <div className="lesson-answer-list" data-count={question.choices.length}
           style={{
             display: "grid",
             gridTemplateColumns: singleColumn ? "1fr" : "repeat(2, minmax(0, 1fr))",
@@ -1172,13 +807,13 @@ export default function Section1Unit2Lesson1Client({
                     flex: 1,
                     minHeight: compactPhone ? (tinyPhone ? 72 : ultraCompactPhone ? 82 : 92) : 142,
                     borderRadius: 20,
-                    background: "rgba(255, 255, 255, 0.5)",
+                    background: "var(--lesson-input-bg)",
                     display: "grid",
                     placeItems: "center",
                     fontSize: imageArtSize,
                   }}
                 >
-                  {ART[choice.art]}
+                  <VocabularyArt art={choice.art} size={imageArtSize} />
                 </div>
                 <div
                   style={{
@@ -1382,10 +1017,11 @@ export default function Section1Unit2Lesson1Client({
 
   return (
     <main
+      className="authored-exercise"
       onPointerDownCapture={unlockAudio}
       style={{
-        height: compactPhone ? "100dvh" : "auto",
-        minHeight: "100dvh",
+        height: compactPhone ? "var(--page-content-height)" : "auto",
+        minHeight: "var(--page-content-height)",
         background: `linear-gradient(180deg, ${LESSON_THEME.bgTop} 0%, ${LESSON_THEME.bgBottom} 100%)`,
         color: LESSON_THEME.textPrimary,
         padding: shellPadding,
@@ -1425,6 +1061,12 @@ export default function Section1Unit2Lesson1Client({
           </Link>
 
           <div
+            className="lesson-progress-track"
+            role="progressbar"
+            aria-label="Lesson progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
             style={{
               flex: 1,
               height: progressHeight,
@@ -1469,7 +1111,7 @@ export default function Section1Unit2Lesson1Client({
                 display: "grid",
                 gridTemplateRows: desktopLayout
                   ? "auto minmax(0, 1fr)"
-                  : `${promptRowHeight}px ${cardMinHeight}px minmax(0, 1fr)`,
+                  : `auto ${cardMinHeight}px minmax(0, 1fr)`,
                 gap: slidePanelGap,
                 height: "100%",
                 minHeight: 0,
@@ -1488,8 +1130,8 @@ export default function Section1Unit2Lesson1Client({
                   style={{
                     margin: 0,
                     fontSize: titleFontSize,
-                    lineHeight: 1.08,
-                    fontWeight: 800,
+                    lineHeight: 1.2,
+                    fontWeight: 700,
                     letterSpacing: "-0.02em",
                     color: LESSON_THEME.textPrimary,
                     maxWidth: desktopLayout ? "18ch" : undefined,
@@ -1514,7 +1156,7 @@ export default function Section1Unit2Lesson1Client({
                 >
                   <div style={{ display: "flex", justifyContent: "center", minHeight: 0 }}>{renderAudioCard()}</div>
                   <div
-                    className="lesson-scroll-panel"
+                    className="lesson-scroll-panel" data-lesson-scroll
                     style={{
                       display: "grid",
                       gap: compactPhone ? 12 : 18,
@@ -1531,7 +1173,7 @@ export default function Section1Unit2Lesson1Client({
                 <>
                   <div style={{ display: "flex", justifyContent: "center", minHeight: 0 }}>{renderAudioCard()}</div>
                   <div
-                    className="lesson-scroll-panel"
+                    className="lesson-scroll-panel" data-lesson-scroll
                     style={{
                       minHeight: 0,
                       overflowY: "auto",
@@ -1588,9 +1230,12 @@ export default function Section1Unit2Lesson1Client({
               {feedback || "\u00A0"}
             </div>
 
+            <LessonExplanation question={question} wrong={resultState === "wrong"} />
+
             <button
               type="button"
               className="lesson-tap-target lesson-action-button"
+              {...lessonActionPressHandlers}
               onClick={onPrimaryAction}
               disabled={!canSubmit}
               style={{
@@ -1630,7 +1275,7 @@ export default function Section1Unit2Lesson1Client({
         }
 
         .lesson-audio-card:not(:disabled):active {
-          transform: translateY(4px) !important;
+          transform: none !important;
           box-shadow: inset 0 -3px 0 ${LESSON_THEME.cardInset} !important;
         }
 

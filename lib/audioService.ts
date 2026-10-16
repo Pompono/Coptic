@@ -14,6 +14,16 @@ type AudioSessionNavigator = Navigator & {
   };
 };
 
+function recordingStarted() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("coptic-audio-played"));
+}
+
+export function reportAudioFailure(error: unknown) {
+  if (typeof window === "undefined") return;
+  const detail = error instanceof Error ? error.message : String(error);
+  window.dispatchEvent(new CustomEvent("coptic-audio-error", { detail: `The recording could not play. ${detail}` }));
+}
+
 class AudioService {
   private ctx: AudioContext | null = null;
   private cache = new Map<string, Promise<AudioBuffer>>();
@@ -144,12 +154,15 @@ class AudioService {
     await Promise.all(entries.map(({ key, url }) => this.preload(key, url)));
   }
 
-  async play(key: string, url = key) {
+  async play(key: string, url = key, rate = 1) {
+    if (!Number.isFinite(rate) || rate < 0.5 || rate > 1.5) throw new Error("Unsupported recording speed.");
     const ctx = await this.resume();
     const buffer = await this.preload(key, url);
+    if (ctx.state !== "running") await ctx.resume();
     const source = ctx.createBufferSource();
 
     source.buffer = buffer;
+    source.playbackRate.value = rate;
     source.connect(ctx.destination);
     this.activeSources.add(source);
 
@@ -161,6 +174,7 @@ class AudioService {
     };
 
     source.start(0);
+    recordingStarted();
     return source;
   }
 
@@ -177,6 +191,12 @@ class AudioService {
     }
 
     this.activeSources.clear();
+  }
+
+  async pause() {
+    this.stopAll();
+    this.unlockPromise = null;
+    if (this.ctx?.state === "running") await this.ctx.suspend();
   }
 }
 

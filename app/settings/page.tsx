@@ -1,8 +1,9 @@
 "use client";
+import PageHeader from "../PageHeader";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clearAllUnitProgress } from "../learn/progress";
 import { lessons } from "@/lib/lesson";
 import {
@@ -10,10 +11,6 @@ import {
   COPTIC_FONT_STORAGE_KEY,
   type CopticFontMode,
 } from "../CopticFontPreference";
-import {
-  COPTIC_KEYBOARD_ENABLED_STORAGE_KEY,
-  isCopticKeyboardEnabled,
-} from "../CopticKeyboardPreference";
 import { applyThemeMode, THEME_STORAGE_KEY, type ThemeMode } from "../ThemePreference";
 import {
   BOHAIRIC_ONLY_STORAGE_KEY,
@@ -24,11 +21,11 @@ import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
 
 const COPTIC_KEYBOARD_APP_STORE_URL = "https://apps.apple.com/us/app/coptic-keyboard/id1510907422";
 
+
 export default function SettingsPage() {
   const router = useRouter();
   const [fontMode, setFontMode] = useState<CopticFontMode>("avva");
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
-  const [keyboardEnabled, setKeyboardEnabled] = useState(true);
   const [bohairicOnlyEnabled, setBohairicOnlyEnabled] = useState(true);
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [devLessonId, setDevLessonId] = useState(lessons[0]?.id ?? "");
@@ -48,7 +45,6 @@ export default function SettingsPage() {
     setThemeMode(theme);
     applyThemeMode(theme);
 
-    setKeyboardEnabled(isCopticKeyboardEnabled());
     setBohairicOnlyEnabled(isBohairicOnlyEnabled());
   }, []);
 
@@ -61,9 +57,9 @@ export default function SettingsPage() {
   }, []);
 
   const selectedLesson = lessons.find((lesson) => lesson.id === devLessonId) ?? lessons[0] ?? null;
-  const selectedLessonSteps =
-    selectedLesson?.progressionGroups?.flatMap((group) => group.lessons).filter((step) => Boolean(step.exerciseSet)) ??
-    [];
+  const selectedLessonSteps = useMemo(() =>
+    selectedLesson?.progressionGroups?.flatMap((group) => group.lessons).filter((step) => Boolean(step.exerciseSet)) ?? [],
+    [selectedLesson]);
 
   useEffect(() => {
     if (!selectedLesson) {
@@ -91,11 +87,6 @@ export default function SettingsPage() {
     setThemeMode(nextMode);
     localStorage.setItem(THEME_STORAGE_KEY, nextMode);
     applyThemeMode(nextMode);
-  };
-
-  const onToggleKeyboardEnabled = (nextEnabled: boolean) => {
-    setKeyboardEnabled(nextEnabled);
-    localStorage.setItem(COPTIC_KEYBOARD_ENABLED_STORAGE_KEY, String(nextEnabled));
   };
 
   const onToggleBohairicOnlyEnabled = (nextEnabled: boolean) => {
@@ -141,43 +132,6 @@ export default function SettingsPage() {
     router.push(`/learn/${selectedLesson.id}/play/${devStepId}`);
   };
 
-  const toggleButtonStyle = (active: boolean) => ({
-    minWidth: 76,
-    padding: "8px 12px",
-    border: "none",
-    cursor: "pointer",
-    background: active ? "var(--toggle-active-bg)" : "transparent",
-    color: active ? "var(--toggle-active-text)" : "var(--text-color)",
-    fontWeight: 700,
-    fontSize: 13,
-    lineHeight: 1.2,
-    textAlign: "center" as const,
-    fontFamily: "inherit",
-  });
-
-  const toggleRowStyle = {
-    display: "grid",
-    gridTemplateColumns: isNarrowLayout ? "1fr" : "minmax(160px, max-content) auto",
-    alignItems: "center",
-    columnGap: 10,
-    rowGap: isNarrowLayout ? 8 : 0,
-  } as const;
-
-  const toggleLabelStyle = {
-    fontSize: 14,
-    fontWeight: 600,
-    maxWidth: "100%",
-    overflowWrap: "anywhere" as const,
-  } as const;
-
-  const toggleControlStyle = {
-    display: "inline-flex",
-    border: "1px solid var(--border-color)",
-    borderRadius: 8,
-    overflow: "hidden",
-    justifySelf: "end",
-  } as const;
-
   const devActionButtonStyle = {
     padding: "10px 14px",
     borderRadius: 10,
@@ -199,121 +153,14 @@ export default function SettingsPage() {
     fontSize: 14,
   } as const;
 
-  return (
-    <main
-      style={{
-        padding: 24,
-        maxWidth: 900,
-        margin: "0 auto",
-        minHeight: "100vh",
-        display: "grid",
-        alignContent: "start",
-        gap: 20,
-      }}
-    >
-      <div>
-        <h1 style={{ marginTop: 0, marginBottom: 8, fontSize: 34, fontWeight: 800 }}>Settings</h1>
-        <p style={{ marginBottom: 0, opacity: 0.85 }}>Customize the app to fit your needs!</p>
-      </div>
-
-      <section
-        style={{
-          display: "grid",
-          gap: 20,
-          border: "1px solid var(--border-color)",
-          borderRadius: 12,
-          padding: 18,
-          background: "var(--panel-bg)",
-        }}
-      >
-        <div style={toggleRowStyle} aria-label="Theme toggle">
-          <span style={toggleLabelStyle}>App Theme</span>
-          <div style={toggleControlStyle}>
-            <button type="button" onClick={() => onToggleTheme("light")} style={toggleButtonStyle(themeMode === "light")}>
-              Light
-            </button>
-            <button type="button" onClick={() => onToggleTheme("dark")} style={toggleButtonStyle(themeMode === "dark")}>
-              Dark
-            </button>
-          </div>
-        </div>
-
-        <div style={toggleRowStyle} aria-label="Coptic font toggle">
-          <span style={toggleLabelStyle}>Coptic Font</span>
-
-          <div style={toggleControlStyle}>
-            <button type="button" onClick={() => onToggleFont("unicode")} style={toggleButtonStyle(fontMode === "unicode")}>
-              Standard
-            </button>
-            <button type="button" onClick={() => onToggleFont("avva")} style={toggleButtonStyle(fontMode === "avva")}>
-              New
-            </button>
-          </div>
-        </div>
-
-        <div style={toggleRowStyle} aria-label="Bohairic-only mode toggle">
-          <span style={toggleLabelStyle}>Global Bohairic-only Mode</span>
-
-          <div style={toggleControlStyle}>
-            <button
-              type="button"
-              onClick={() => onToggleBohairicOnlyEnabled(false)}
-              style={toggleButtonStyle(!bohairicOnlyEnabled)}
-            >
-              Off
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleBohairicOnlyEnabled(true)}
-              style={toggleButtonStyle(bohairicOnlyEnabled)}
-            >
-              On
-            </button>
-          </div>
-        </div>
-
-        <div style={toggleRowStyle} aria-label="On-screen Coptic keyboard toggle">
-          <span style={toggleLabelStyle}>On-screen Coptic Keyboard</span>
-
-          <div style={toggleControlStyle}>
-            <button
-              type="button"
-              onClick={() => onToggleKeyboardEnabled(false)}
-              style={toggleButtonStyle(!keyboardEnabled)}
-            >
-              Disabled
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleKeyboardEnabled(true)}
-              style={toggleButtonStyle(keyboardEnabled)}
-            >
-              Enabled
-            </button>
-          </div>
-        </div>
-
-        <div style={toggleRowStyle} aria-label="Developer tools toggle">
-          <span style={toggleLabelStyle}>Developer Tools</span>
-
-          <div style={toggleControlStyle}>
-            <button
-              type="button"
-              onClick={() => onToggleDevTools(false)}
-              style={toggleButtonStyle(!devToolsEnabled)}
-            >
-              Off
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleDevTools(true)}
-              style={toggleButtonStyle(devToolsEnabled)}
-            >
-              On
-            </button>
-          </div>
-        </div>
-
+  return <main className="app-page settings-page" style={{display:'grid',alignContent:'start'}}>
+    <PageHeader title="Settings" icon="settings"/>
+    <section><h2 className="settings-section-title">Appearance</h2><div className="settings-group">
+      <div className="settings-row" aria-label="Theme toggle"><label htmlFor="theme-choice">App theme</label><select id="theme-choice" aria-label="App theme" value={themeMode} onChange={e=>onToggleTheme(e.target.value as ThemeMode)}><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      <div className="settings-row"><label htmlFor="font-choice">Coptic font</label><select id="font-choice" value={fontMode} onChange={e=>onToggleFont(e.target.value as CopticFontMode)}><option value="unicode">Standard</option><option value="avva">Avva Shenouda</option></select></div>
+    </div></section>
+    <section><h2 className="settings-section-title">Language</h2><div className="settings-group"><div className="settings-row"><label htmlFor="bohairic-switch">Bohairic-only mode</label><input id="bohairic-switch" type="checkbox" className="ui-switch" role="switch" checked={bohairicOnlyEnabled} onChange={e=>onToggleBohairicOnlyEnabled(e.target.checked)}/></div></div><p className="settings-note">Use verified Bohairic entries and keep the translator in Bohairic.</p></section>
+    <section><h2 className="settings-section-title">Developer</h2><div className="settings-group"><div className="settings-row" aria-label="Developer tools toggle"><label htmlFor="developer-switch">Developer tools</label><input id="developer-switch" type="checkbox" className="ui-switch" role="switch" checked={devToolsEnabled} onChange={e=>onToggleDevTools(e.target.checked)}/></div></div>
         {devToolsEnabled ? (
           <div
             style={{
@@ -414,35 +261,8 @@ export default function SettingsPage() {
             </div>
           </div>
         ) : null}
-      </section>
 
-      <div
-        style={{
-          display: "grid",
-          justifyItems: "center",
-          gap: 10,
-          paddingTop: 4,
-        }}
-      >
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.8, textAlign: "center" }}>
-          Prefer the system Coptic keyboard?
-        </p>
-        <a
-          href={COPTIC_KEYBOARD_APP_STORE_URL}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Download the Coptic Keyboard app on the App Store"
-          style={{ display: "inline-flex", lineHeight: 0 }}
-        >
-          <Image
-            src="/download-on-the-app-store-badge.svg"
-            alt="Download on the App Store"
-            width={180}
-            height={60}
-            style={{ width: 180, height: "auto", display: "block" }}
-          />
-        </a>
-      </div>
-    </main>
-  );
+    </section>
+    <section><h2 className="settings-section-title">Coptic keyboard</h2><div className="settings-group keyboard-resource"><span>Type with the iOS<br/>Coptic keyboard</span><a href={COPTIC_KEYBOARD_APP_STORE_URL} target="_blank" rel="noreferrer" aria-label="Download the Coptic Keyboard app on the App Store"><Image src="/download-on-the-app-store-badge.svg" alt="Download on the App Store" width={130} height={44}/></a></div><p className="settings-note">An optional system keyboard, available separately on the App Store.</p></section>
+  </main>;
 }

@@ -1,6 +1,6 @@
-import Link from "next/link";
+import Link from "@/lib/AppLink";
 import { lessons } from "@/lib/lesson";
-import LessonClient from "../../LessonClient";
+import PlayLessonClient from "../../../PlayLessonClient";
 
 export default async function PlayLessonPage({
   params,
@@ -45,5 +45,5 @@ export default async function PlayLessonPage({
     );
   }
 
-  return <LessonClient lesson={lesson} step={step} />;
+  return <PlayLessonClient lesson={lesson} step={step} />;
 }

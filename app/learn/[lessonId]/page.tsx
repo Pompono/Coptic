@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { lessons } from "@/lib/lesson";
-import UnitProgressClient from "./UnitProgressClient";
+import UnitMapClient from "./UnitMapClient";
 
 export default async function UnitPage({
   params,
@@ -43,5 +43,5 @@ export default async function UnitPage({
     );
   }
 
-  return <UnitProgressClient focusLessonId={lesson.id} />;
+  return <UnitMapClient focusLessonId={lesson.id} />;
 }

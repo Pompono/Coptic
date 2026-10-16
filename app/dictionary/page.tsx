@@ -1,6 +1,15 @@
 "use client";
+import {searchBrowseDictionary, peekBrowseDictionary, type BrowseEntry} from "@/lib/dictionary/browseClient";
+import PageHeader from "../PageHeader";
 
-import { type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import AppIcon from "../AppIcon";
+import Link from "@/lib/AppLink";
+import { readDictionaryOptions } from "@/lib/dictionary/preferences";
+import { COPTIC_ALPHABET } from "@/lib/dictionary/search.mjs";
+
+function invalidateGeneration(generation: { current: number }) { generation.current += 1; }
+
+import { type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, type CSSProperties, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   isCopticKeyboardEnabled,
   readCopticKeyboardSessionVisibility,
@@ -8,44 +17,6 @@ import {
 } from "../CopticKeyboardPreference";
 import { isBohairicOnlyEnabled } from "../BohairicPreference";
 import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
-
-type BohExample = { sentence: string; translation: string; source?: string };
-type BohairicEntryRaw = {
-  word: string;
-  tla_id?: string;
-  entry_url?: string;
-  bohairic_variants?: string[];
-  pos?: string;
-  scriptorium_tag?: string;
-  greek_origin?: string;
-  senses?: string[];
-  bohairic_examples?: BohExample[];
-};
-
-type CombinedEntryRaw = {
-  lemma: string;
-  forms?: string[];
-  pos?: string;
-  gloss?: string[];
-  hasGloss?: boolean;
-  source?: string;
-  license?: string;
-};
-
-type Entry = {
-  lemma: string;
-  forms: string[];
-  pos: string;
-  gloss: string[];
-  dialect: "boh" | "unknown";
-  entryUrl?: string;
-  tag?: string;
-  greek?: string;
-  examples?: BohExample[];
-  searchBlob: string;
-  normalizedPos: string;
-  hasExamples: boolean;
-};
 
 type SpecialKey =
   | "backspace"
@@ -68,24 +39,6 @@ type PageMode = "ABC" | "NUMBERS" | "SYMBOLS";
 const POS_LABELS: Record<string, string> = {
   q: "Qualitative",
 };
-
-function norm(s: string) {
-  return (s || "").toLowerCase().normalize("NFKC").trim();
-}
-
-function uniqueStrings(arr: string[]) {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const x of arr) {
-    const t = (x ?? "").toString().trim();
-    if (!t) continue;
-    const k = t.normalize("NFKC");
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(t);
-  }
-  return out;
-}
 
 function removeLastChar(s: string) {
   const chars = Array.from(s);
@@ -221,6 +174,12 @@ const KB_SYMBOLS: KeyDef[][] = [
 
 export default function DictionaryPage() {
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState("all");
+  const [ignoreMarks, setIgnoreMarks] = useState(true);
+  const [initial, setInitial] = useState("");
+  const [spellingSuggestions, setSpellingSuggestions] = useState(true);
+  const [searchRestored, setSearchRestored] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [bohairicOnly, setBohairicOnly] = useState(true);
   const [globalBohairicOnlyEnabled, setGlobalBohairicOnlyEnabled] = useState(true);
   const [posFilter, setPosFilter] = useState("All");
@@ -242,8 +201,15 @@ export default function DictionaryPage() {
   const [mobileKeyboardIsClosing, setMobileKeyboardIsClosing] = useState(false);
   const queryInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [resultsLimit, setResultsLimit] = useState(80);
+  const [visibleResults, setVisibleResults] = useState<BrowseEntry[]>([]);
+  const [resultKey,setResultKey] = useState('');
+  const [suggestions,setSuggestions] = useState<string[]>([]);
+  const [hasMore,setHasMore] = useState(false);
+  const [loadingMore,setLoadingMore] = useState(false);
+  const [moreError,setMoreError] = useState(false);
+  const generation = useRef(0), morePending = useRef(false);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
     "loading"
   );
@@ -251,76 +217,47 @@ export default function DictionaryPage() {
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        setLoadState("loading");
-
-        const bohRes = await fetch("/bohairic_dictionary.json", {
-          cache: "no-store",
-        });
-        const bohRaw = (await bohRes.json()) as BohairicEntryRaw[];
-
-        const comboRes = await fetch("/coptic_dictionary_combined.json", {
-          cache: "no-store",
-        });
-        const comboRaw = (await comboRes.json()) as CombinedEntryRaw[];
-
-        const bohEntries: Entry[] = bohRaw.map((r) => {
-          const gloss = uniqueStrings(r.senses ?? []);
-          const forms = uniqueStrings([r.word, ...(r.bohairic_variants ?? [])]);
-
-          return {
-            lemma: r.word,
-            forms,
-            pos: r.pos ?? "",
-            gloss,
-            dialect: "boh",
-            entryUrl: r.entry_url,
-            tag: r.scriptorium_tag,
-            greek: r.greek_origin,
-            examples: r.bohairic_examples ?? [],
-            searchBlob: norm([r.word, ...forms, ...gloss].join(" ")),
-            normalizedPos: (r.pos ?? "").trim(),
-            hasExamples: !!(r.bohairic_examples && r.bohairic_examples.length > 0),
-          };
-        });
-
-        const comboEntries: Entry[] = comboRaw.map((r) => {
-          const gloss = uniqueStrings(r.gloss ?? []);
-          const forms = uniqueStrings([r.lemma, ...(r.forms ?? [])]);
-
-          return {
-            lemma: r.lemma,
-            forms,
-            pos: r.pos ?? "",
-            gloss,
-            dialect: "unknown",
-            searchBlob: norm([r.lemma, ...forms, ...gloss].join(" ")),
-            normalizedPos: (r.pos ?? "").trim(),
-            hasExamples: false,
-          };
-        });
-
-        if (!cancelled) {
-          setEntries([...bohEntries, ...comboEntries]);
-          setLoadState("ready");
-        }
-      } catch {
-        if (!cancelled) setLoadState("error");
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("coptic-dictionary-search") ?? "null");
+      if (saved) {
+        if (typeof saved.query === "string") setQuery(saved.query);
+        if (["all", "coptic", "english", "transliteration"].includes(saved.scope)) setScope(saved.scope);
+        if (typeof saved.pos === "string") setPosFilter(saved.pos);
+        if (typeof saved.initial === "string" && (saved.initial === "" || Array.from(COPTIC_ALPHABET).includes(saved.initial))) setInitial(saved.initial);
+        if (typeof saved.examplesOnly === "boolean") setExamplesOnly(saved.examplesOnly);
       }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
+      const preferences = JSON.parse(localStorage.getItem("coptic-dictionary-preferences") ?? "null");
+      if (typeof preferences?.ignoreMarks === "boolean") setIgnoreMarks(preferences.ignoreMarks);
+      if (typeof preferences?.suggestions === "boolean") setSpellingSuggestions(preferences.suggestions);
+      const recent = JSON.parse(localStorage.getItem("coptic-dictionary-recent") ?? "[]");
+      if (Array.isArray(recent)) setRecentSearches(recent.filter(x => typeof x === "string").slice(0, 8));
+    } catch { /* A damaged preference must not prevent dictionary access. */ }
+    setSearchRestored(true);
+  }, []);
+  useEffect(() => {
+    if (!searchRestored) return;
+    try {
+      sessionStorage.setItem("coptic-dictionary-search", JSON.stringify({ query, scope, pos: posFilter, initial, examplesOnly, bohairicOnly }));
+      localStorage.setItem("coptic-dictionary-preferences", JSON.stringify({ ignoreMarks, suggestions: spellingSuggestions }));
+    } catch { /* Search remains usable when storage is unavailable. */ }
+  }, [searchRestored, query, scope, posFilter, initial, examplesOnly, ignoreMarks, spellingSuggestions, bohairicOnly]);
+  const rememberSearch = () => {
+    const value = query.trim();
+    if (!value) return;
+    const recent = [value, ...recentSearches.filter(x => x !== value)].slice(0, 8);
+    setRecentSearches(recent);
+    try { localStorage.setItem("coptic-dictionary-recent", JSON.stringify(recent)); } catch {}
+  };
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault(); queryInputRef.current?.focus({ preventScroll: true });
+      }
     };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
   }, []);
 
-  useEffect(() => {
-    setResultsLimit(80);
-  }, [deferredQuery, bohairicOnly, posFilter, examplesOnly]);
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 768px)");
@@ -336,7 +273,7 @@ export default function DictionaryPage() {
     setShowKeyboard(keyboardIsEnabled && !mobileViewport ? readCopticKeyboardSessionVisibility(true) : false);
     const globalBohairicOnly = isBohairicOnlyEnabled();
     setGlobalBohairicOnlyEnabled(globalBohairicOnly);
-    setBohairicOnly(globalBohairicOnly);
+    setBohairicOnly(globalBohairicOnly || readDictionaryOptions().bohairicOnly);
   }, []);
 
   useEffect(() => {
@@ -374,100 +311,38 @@ export default function DictionaryPage() {
     };
   }, [posOpen]);
 
-  const allPos = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of entries) {
-      const p = (e.pos || "").trim();
-      if (p) set.add(p);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [entries]);
-
-  const filtered = useMemo(() => {
-    const q = norm(deferredQuery);
-
-    const byText = entries.filter((e) => {
-      if (!q) return true;
-      return e.searchBlob.includes(q);
-    });
-
-    const byDialect = bohairicOnly
-      ? byText.filter((e) => e.dialect === "boh")
-      : byText;
-
-    const byPos =
-      posFilter === "All"
-        ? byDialect
-        : byDialect.filter((e) => e.normalizedPos === posFilter);
-
-    const byExamples = examplesOnly ? byPos.filter((e) => e.hasExamples) : byPos;
-
-    return byExamples
-      .slice()
-      .sort((a, b) => {
-        if (a.dialect !== b.dialect) return a.dialect === "boh" ? -1 : 1;
-        return a.lemma.localeCompare(b.lemma);
-      });
-  }, [entries, deferredQuery, bohairicOnly, posFilter, examplesOnly]);
-
-  const posCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    let total = 0;
-
-    const base = bohairicOnly
-      ? entries.filter((e) => e.dialect === "boh")
-      : entries.slice();
-
-    const textFiltered = base.filter((e) => {
-      const q = norm(deferredQuery);
-      if (!q) return true;
-      return e.searchBlob.includes(q);
-    });
-
-    const examplesFiltered = examplesOnly
-      ? textFiltered.filter((e) => e.hasExamples)
-      : textFiltered;
-
-    for (const e of examplesFiltered) {
-      const p = e.normalizedPos || "(unspecified)";
-      map.set(p, (map.get(p) ?? 0) + 1);
-      total += 1;
-    }
-
-    return { map, total };
-  }, [entries, bohairicOnly, deferredQuery, examplesOnly]);
-
-  const displayedPosOptions = useMemo(() => {
-    const q = posSearch.trim().toLowerCase();
-    const populatedPos = allPos.filter((p) => (posCounts.map.get(p) ?? 0) > 0);
-    const base = ["All", ...populatedPos];
-    if (!q) return base;
-    return base.filter((p) =>
-      p === "All" ? true : getPosLabel(p).toLowerCase().includes(q) || p.toLowerCase().includes(q)
-    );
-  }, [allPos, posCounts, posSearch]);
-
-  useEffect(() => {
-    if (posFilter === "All") {
-      return;
-    }
-
-    if ((posCounts.map.get(posFilter) ?? 0) > 0) {
-      return;
-    }
-
-    setPosFilter("All");
-  }, [posFilter, posCounts]);
-
-  const visibleResults = useMemo(
-    () => filtered.slice(0, resultsLimit),
-    [filtered, resultsLimit]
-  );
-
-  const hiddenResultsCount = filtered.length - visibleResults.length;
-
-  const totalShown = filtered.length;
-  const totalAll = posCounts.total;
+  const searchOptions = useMemo(()=>({query:deferredQuery,scope,ignoreMarks,initial,bohairicOnly,examplesOnly,pos:posFilter==='All'?'':posFilter,suggestions:spellingSuggestions}),
+    [deferredQuery,scope,ignoreMarks,initial,bohairicOnly,examplesOnly,posFilter,spellingSuggestions]);
+  useEffect(()=>{
+    if(!searchRestored)return;
+    const current=++generation.current;
+    morePending.current=false;setLoadingMore(false);setMoreError(false);
+    const cached=peekBrowseDictionary(searchOptions);
+    setLoadState(cached?'ready':'loading');
+    if(cached){setResultKey(JSON.stringify(searchOptions));setVisibleResults(cached.entries);setSuggestions(cached.suggestions);setHasMore(cached.entries.length<cached.total);}
+    const fontReady=cached?Promise.resolve():document.fonts?.load('30px "FreeSerifAvvaShenouda"','ⲁⲃⲅ').catch(()=>undefined);
+    Promise.all([searchBrowseDictionary(searchOptions,0),fontReady]).then(([result])=>{
+      if(current!==generation.current)return;
+      setResultKey(JSON.stringify(searchOptions));setVisibleResults(result.entries);setSuggestions(result.suggestions);setHasMore(result.entries.length<result.total);setLoadState('ready');
+    }).catch(()=>{if(current===generation.current){setVisibleResults([]);setHasMore(false);setLoadState('error');}});
+    return()=>invalidateGeneration(generation);
+  },[searchOptions,searchRestored,loadAttempt]);
+  const loadMore=useCallback(()=>{
+    if(morePending.current||!hasMore||loadState!=='ready')return;
+    morePending.current=true;setLoadingMore(true);setMoreError(false);
+    const current=generation.current;
+    searchBrowseDictionary(searchOptions,visibleResults.length).then(result=>{
+      if(current!==generation.current)return;
+      setVisibleResults(previous=>[...previous,...result.entries]);setHasMore(visibleResults.length+result.entries.length<result.total);
+    }).catch(()=>{if(current===generation.current)setMoreError(true);})
+      .finally(()=>{if(current===generation.current){morePending.current=false;setLoadingMore(false);}});
+  },[hasMore,loadState,searchOptions,visibleResults.length]);
+  useEffect(()=>{
+    if(!sentinel.current||!hasMore||moreError||loadState!=='ready'||typeof IntersectionObserver==='undefined')return;
+    const observer=new IntersectionObserver(records=>{if(records.some(record=>record.isIntersecting))loadMore();},{rootMargin:'0px 0px 600px 0px'});
+    observer.observe(sentinel.current);
+    return()=>observer.disconnect();
+  },[hasMore,loadMore,moreError,loadState]);
 
   const page: KeyDef[][] =
     mode === "ABC" ? KB_ABC : mode === "NUMBERS" ? KB_NUMBERS : KB_SYMBOLS;
@@ -663,7 +538,7 @@ export default function DictionaryPage() {
 
   return (
     <main
-      className="min-h-screen bg-[var(--bg-color)] text-[var(--text-color)]"
+      className="dictionary-page min-h-screen bg-[var(--bg-color)] text-[var(--text-color)]"
       style={{
         paddingBottom:
           keyboardEnabled && isMobileViewport && showKeyboard
@@ -680,309 +555,53 @@ export default function DictionaryPage() {
               : undefined,
         }}
       >
-        <h1 className="mt-0 text-4xl font-semibold tracking-tight">Coptic Dictionary</h1>
-        <p className="mt-2 text-[var(--text-muted)]">Search lemma, forms, or gloss</p>
+        <PageHeader title="Dictionary" icon="book"/>
 
         <div className="mt-5 space-y-3">
-          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-3">
+          <label className="dictionary-search-shell flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] px-4 py-3">
+            <AppIcon name="search" size={20}/>
             <input
               ref={queryInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onBlur={rememberSearch}
+              onKeyDown={e => { if (e.key === "Enter") { rememberSearch(); e.currentTarget.blur(); } }}
               onPointerDownCapture={hideKeyboardOnManualInputFocus}
               readOnly={keyboardEnabled && isMobileViewport && showKeyboard}
               inputMode={keyboardEnabled && isMobileViewport && showKeyboard ? "none" : "text"}
-              placeholder="Search Coptic or English..."
-              className="coptic-text w-full bg-transparent text-base outline-none placeholder:text-[var(--text-soft)]"
+              aria-label="Dictionary search"
+              placeholder="Search Coptic, English, or transliteration..."
+              className={`dictionary-search-input ${/\p{Script=Coptic}/u.test(query) ? "coptic-text" : ""} w-full min-w-0 bg-transparent text-base outline-none placeholder:text-[var(--text-soft)]`}
             />
+          </label>
+
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <Link href="/dictionary/settings/" className="ui-text-action"><AppIcon name="settings" size={18}/>Advanced dictionary settings</Link>
+            <button type="button" onClick={() => { setQuery(""); queryInputRef.current?.focus({ preventScroll: true }); }} className="min-h-11 px-3 text-[var(--text-muted)]">Clear</button>
           </div>
+          {suggestions.length > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" aria-label="Spelling suggestions">Try:
+            {suggestions.map(word => <button key={word} type="button" onClick={() => setQuery(word)} className="coptic-text rounded-xl border border-[var(--border-color)] px-3 py-2">{word}</button>)}
+          </div>}
 
-          {keyboardEnabled && !isMobileViewport ? (
-          <div className="rounded-2xl border border-[var(--kb-border)] p-3"
-            style={{ background: "var(--kb-shell)" }}>
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm text-[var(--text-muted)]">Coptic keyboard</span>
-              <button
-                type="button"
-                onClick={() => setKeyboardVisibility(!showKeyboard)}
-                className="rounded-full border border-[var(--border-color)] bg-[var(--surface-1)] px-3 py-1 text-sm text-[var(--text-muted)] hover:bg-[var(--surface-2)]"
-              >
-                {showKeyboard ? "Hide" : "Show"}
-              </button>
-            </div>
-
-            {showKeyboard ? (
-              <div
-                style={{
-                  padding: 12,
-                  borderRadius: 16,
-                  background: "var(--kb-panel)",
-                  border: "1px solid var(--kb-border)",
-                }}
-              >
-                {page.map((row, rIdx) => (
-                  <div
-                    key={rIdx}
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      justifyContent: "center",
-                      marginBottom: rIdx === page.length - 1 ? 0 : 10,
-                    }}
-                  >
-                    {row.map((k, i) => {
-                      const obj = isKeyObj(k) ? k : null;
-
-                      const isSpace = obj?.key === "space";
-                      const isReturn = obj?.key === "return";
-                      const isBackspace = obj?.key === "backspace";
-                      const isShiftKey = obj?.key === "shift";
-
-                      const flex = isSpace
-                        ? 5
-                        : isReturn
-                        ? 2.2
-                        : isBackspace || isShiftKey
-                        ? 1.6
-                        : obj
-                        ? 1.4
-                        : 1;
-
-                      const shiftKeyBg = shiftActive ? "var(--accent-color)" : "var(--kb-key)";
-                      const shiftKeyFg = shiftActive ? "var(--accent-contrast-color)" : "var(--kb-text)";
-
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => handleKey(k)}
-                          style={{
-                            flex,
-                            minWidth: 44,
-                            height: 56,
-                            borderRadius: 14,
-                            background: isShiftKey
-                              ? shiftKeyBg
-                              : obj?.key === "return"
-                              ? "var(--kb-key-return)"
-                              : obj?.key === "toNumbers" || obj?.key === "toSymbols" || obj?.key === "toABC"
-                              ? "var(--kb-key-alt)"
-                              : "var(--kb-key)",
-                            border: "1px solid var(--kb-border)",
-                            color: isShiftKey ? shiftKeyFg : "var(--kb-text)",
-                            fontSize: 20,
-                            fontWeight: 700,
-                            fontFamily: "var(--coptic-font-family)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            userSelect: "none",
-                            padding: "0 10px",
-                            position: "relative",
-                          }}
-                        >
-                          {isBackspace ? (
-                            <IconBackspace />
-                          ) : isShiftKey ? (
-                            <>
-                              <IconShift />
-                              {capsLock ? (
-                                <span
-                                  style={{
-                                    position: "absolute",
-                                    bottom: 8,
-                                    width: 18,
-                                    height: 3,
-                                    borderRadius: 3,
-                                    background: "var(--accent-contrast-color)",
-                                    opacity: 0.9,
-                                  }}
-                                />
-                              ) : null}
-                            </>
-                          ) : isReturn ? (
-                            "↩"
-                          ) : isSpace ? (
-                            ""
-                          ) : (
-                            <span className="coptic-text">{displayKey(k)}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div ref={posDropdownRef} className="relative min-w-[340px] flex-1">
-              <button
-                type="button"
-                onClick={() => setPosOpen((v) => !v)}
-                className="flex w-full items-center rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-4 py-2"
-                aria-expanded={posOpen}
-                aria-haspopup="listbox"
-              >
-                <span className="text-sm text-[var(--text-muted)]">POS</span>
-                <span className="ml-4 w-full text-left text-sm text-[var(--text-color)]">
-                  {posFilter === "All" ? "All parts of speech" : getPosLabel(posFilter)}
-                </span>
-                <span className="ml-3 text-xs text-[var(--text-soft)]">▾</span>
-              </button>
-
-              {posOpen ? (
-                <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border-color)] bg-[var(--panel-bg)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.7)] backdrop-blur">
-                  <input
-                    value={posSearch}
-                    onChange={(e) => setPosSearch(e.target.value)}
-                    placeholder="Filter parts of speech..."
-                    className="mb-3 w-full rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
-                  />
-
-                  <div className="pos-scrollbar max-h-80 space-y-2 overflow-auto pr-1">
-                    {displayedPosOptions.map((p) => {
-                      const isSelected = posFilter === p;
-                      const count = p === "All" ? totalAll : posCounts.map.get(p) ?? 0;
-
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => {
-                            setPosFilter(p);
-                            setPosOpen(false);
-                          }}
-                          className={[
-                            "group flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition",
-                            isSelected
-                              ? "border-[var(--text-soft)] bg-[var(--surface-2)]"
-                              : "border-transparent bg-[var(--surface-1)] hover:border-[var(--border-color)] hover:bg-[var(--surface-2)]",
-                          ].join(" ")}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <span className="text-sm text-[var(--text-color)]">
-                            {p === "All" ? "All parts of speech" : getPosLabel(p)}
-                          </span>
-                          <span
-                            className={[
-                              "ml-3 inline-flex min-w-8 items-center justify-center rounded-full border px-2 py-0.5 text-xs",
-                              isSelected
-                                ? "border-[var(--text-soft)] bg-[var(--surface-2)] text-[var(--text-color)]"
-                                : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-soft)] group-hover:text-[var(--text-color)]",
-                            ].join(" ")}
-                          >
-                            {isSelected ? "Selected" : count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setExamplesOnly((v) => !v)}
-                className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-transparent px-4 py-2 text-sm text-[var(--text-color)]"
-                aria-pressed={examplesOnly}
-              >
-                <span
-                  className={[
-                    "relative inline-flex h-7 w-12 rounded-full transition-colors",
-                    examplesOnly ? "bg-[var(--text-muted)]" : "bg-white/25",
-                  ].join(" ")}
-                >
-                  <span
-                    className={[
-                      "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
-                      examplesOnly ? "translate-x-6" : "translate-x-1",
-                    ].join(" ")}
-                  />
-                </span>
-                Has examples
-              </button>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (globalBohairicOnlyEnabled) {
-                      setBohairicOnly(true);
-                      return;
-                    }
-
-                    setBohairicOnly((current) => !current);
-                  }}
-                  className={[
-                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
-                    bohairicOnly
-                      ? ""
-                      : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
-                    globalBohairicOnlyEnabled ? "cursor-not-allowed opacity-80" : "",
-                  ].join(" ")}
-                  style={
-                    bohairicOnly
-                      ? {
-                          borderColor: "var(--bohairic-badge-border)",
-                          background: "var(--bohairic-badge-bg)",
-                          color: "var(--bohairic-badge-text)",
-                        }
-                      : undefined
-                  }
-                  aria-pressed={bohairicOnly}
-                  aria-disabled={globalBohairicOnlyEnabled}
-                  disabled={globalBohairicOnlyEnabled}
-                  title={
-                    globalBohairicOnlyEnabled
-                      ? "Disabled while global Bohairic-only mode is enabled"
-                      : "Toggle Bohairic-only dictionary results"
-                  }
-                  >
-                    <span
-                      className={[
-                        "h-2.5 w-2.5 rounded-full",
-                        bohairicOnly ? "" : "bg-[var(--text-soft)]",
-                    ].join(" ")}
-                    style={bohairicOnly ? { background: "var(--bohairic-badge-dot)" } : undefined}
-                    />
-                  Bohairic-only
-                </button>
-              </div>
-            </div>
-
-            <div className="text-sm text-[var(--text-muted)]">
-              {loadState === "loading" ? (
-                <span>Loading…</span>
-              ) : loadState === "error" ? (
-                <span className="text-red-300">Failed to load dictionary files.</span>
-              ) : (
-                <span>
-                  {totalShown} shown • {totalAll} total •{" "}
-                  <span className="text-[var(--text-muted)]">
-                    Badge: <b>Bohairic</b> = verified Bohairic; <b>Unknown</b> = dialect not guaranteed.
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
+          {recentSearches.length > 0 && <details className="text-sm text-[var(--text-muted)]"><summary>Recent searches</summary>
+            <div className="mt-2 flex flex-wrap gap-2">{recentSearches.map(word => <button key={word} type="button" onClick={() => setQuery(word)} className="coptic-text rounded-xl border border-[var(--border-color)] px-3 py-2">{word}</button>)}
+              <button type="button" onClick={() => { setRecentSearches([]); try { localStorage.removeItem("coptic-dictionary-recent"); } catch {} }} className="px-3 py-2 underline">Clear recent searches</button>
+            </div></details>}
+          {loadState==='error'&&<p role="alert" className="text-sm text-[var(--lesson-choice-wrong-text)]">Failed to load dictionary files. <button type="button" onClick={()=>setLoadAttempt(n=>n+1)} className="ml-2 min-h-11 underline">Retry</button></p>}
         </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="dictionary-results" role="region" aria-label="Dictionary entries" aria-busy={loadState==='loading'} data-state={loadState}>
+          {loadState==='loading'&&visibleResults.length===0&&<div className="dictionary-loading" role="status" aria-label="Loading dictionary"><span className="sr-only">Loading dictionary…</span>{[0,1,2].map(n=><div key={n} className="dictionary-placeholder" aria-hidden="true"><i/><i/><i/></div>)}</div>}
           {visibleResults.map((e, idx) => (
             <div
-              key={`${e.dialect}-${e.lemma}-${e.pos}-${idx}`}
-              className="rounded-3xl border border-[var(--border-color)] bg-[var(--surface-1)] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
+              key={resultKey+`-${e.dialect}-${e.lemma}-${e.pos}-${idx}`}
+              className="dictionary-entry-card dictionary-entry-arrival"
+              style={{'--entry-delay':`${Math.min(idx%24,5)*30}ms`} as CSSProperties}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="coptic-text text-2xl font-semibold tracking-tight">{e.lemma}</div>
+                  <Link href={`/dictionary/entry/?lemma=${encodeURIComponent(e.lemma)}`} className="coptic-text text-2xl font-semibold tracking-tight underline-offset-4 hover:underline">{e.lemma}</Link>
+                  {e.matchLabel && <p className="mt-1 text-sm text-[var(--text-muted)]">{e.matchLabel}{e.matchEvidence ? <> · <span className="coptic-text">{e.matchEvidence}</span></> : null}</p>}
 
                   {e.forms.length > 1 && (
                     <div className="mt-1 text-sm text-[var(--text-muted)]">
@@ -1021,20 +640,7 @@ export default function DictionaryPage() {
                     ) : null}
                   </div>
 
-                  <div className="mt-2 text-sm text-[var(--text-muted)]">
-                    {e.tag ? <span className="mr-3">Tag: {e.tag}</span> : null}
-                    {e.greek ? <span>Greek: {e.greek}</span> : null}
-                    {e.entryUrl ? (
-                      <a
-                        href={e.entryUrl}
-                        className="ml-3 text-[var(--text-muted)] underline decoration-[var(--text-soft)] underline-offset-4 hover:text-[var(--text-color)]"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        View entry
-                      </a>
-                    ) : null}
-                  </div>
+
                 </div>
               </div>
 
@@ -1083,18 +689,11 @@ export default function DictionaryPage() {
               ) : null}
             </div>
           ))}
-          {hiddenResultsCount > 0 ? (
-            <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-1)] p-4 text-center text-sm text-[var(--text-muted)]">
-              Showing {visibleResults.length} of {filtered.length} matches.
-              <button
-                type="button"
-                onClick={() => setResultsLimit((current) => current + 80)}
-                className="ml-2 rounded-full border border-[var(--border-color)] bg-[var(--surface-2)] px-3 py-1 text-[var(--text-color)] hover:bg-[var(--surface-1)]"
-              >
-                Show 80 more
-              </button>
-            </div>
-          ) : null}
+          {loadState === "ready" && visibleResults.length === 0 && <p role="status" className="rounded-2xl border border-[var(--border-color)] p-5 text-[var(--text-muted)]">No matching entries. Try a suggested spelling, change the search scope, or clear the filters.</p>}
+          {hasMore&&<div ref={sentinel} className="dictionary-scroll-sentinel">
+            {loadingMore&&<span role="status">Loading more words…</span>}
+            {moreError?<button type="button" className="ui-secondary" onClick={loadMore}>Retry loading more words</button>:<button type="button" className="dictionary-load-more" onClick={loadMore} disabled={loadingMore}>Load more dictionary entries</button>}
+          </div>}
         </div>
       </div>
 
@@ -1210,7 +809,7 @@ export default function DictionaryPage() {
                           ) : null}
                         </>
                       ) : isReturn ? (
-                        "↩"
+                        <AppIcon name="return" />
                       ) : isSpace ? (
                         ""
                       ) : (

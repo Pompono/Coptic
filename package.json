@@ -9,7 +9,9 @@
     "start": "next start",
     "start:lan": "next start --hostname 0.0.0.0",
     "preview:phone": "next build && next start --hostname 0.0.0.0",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
@@ -23,6 +25,7 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@types/node": "25.3.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10",
