@@ -11,6 +11,7 @@ async function moduleUrl(file) {
   if (modules.has(file)) return modules.get(file);
   const source = await readFile(file,'utf8');
   let code = ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+  if (code.includes('import.meta.url')) code = code.replaceAll('import.meta.url', JSON.stringify(pathToFileURL(file).href));
   const imports = [...code.matchAll(/from\s+["']([^"']+)["']/gu)];
   for (const match of imports) {
     const name=match[1];
