@@ -23,5 +23,5 @@ self.onmessage=async(event:MessageEvent<{id:number;options:BrowseOptions;offset:
       lastKey=key;
     }
     self.postMessage({id,result:{entries:lastResult.entries.slice(offset,offset+limit),total:lastResult.total,suggestions:lastResult.suggestions}});
-  }catch{self.postMessage({id,error:'The bundled dictionary could not be loaded.'});}
+  }catch(error){self.postMessage({id,error:error instanceof Error?error.message:String(error)});}
 };
