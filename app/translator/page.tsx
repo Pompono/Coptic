@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   isCopticKeyboardEnabled,
   readCopticKeyboardSessionVisibility,
@@ -9,6 +9,7 @@ import {
 import { isBohairicOnlyEnabled } from "../BohairicPreference";
 import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
 import { publishedTranslation } from "@/lib/localTranslation/referenceClient";
+import { createTranslationRequestGate } from "@/lib/translationRequestGate.mjs";
 
 type TranslationPayload = {
   translation?: string;
@@ -134,9 +135,49 @@ export default function TranslatorPage() {
   const lastShiftTapRef = useRef<number>(0);
   const mobileKeyboardTouchStartRef = useRef<{ x: number; y: number } | null>(null);
   const mobileKeyboardCloseTimerRef = useRef<number | null>(null);
+  const translationRequestGateRef = useRef(createTranslationRequestGate());
   const [mobileKeyboardDragY, setMobileKeyboardDragY] = useState(0);
   const [mobileKeyboardIsDragging, setMobileKeyboardIsDragging] = useState(false);
   const [mobileKeyboardIsClosing, setMobileKeyboardIsClosing] = useState(false);
+
+  const clearCopticTranslation = useCallback(() => {
+    setTranslationState("idle");
+    setTranslationError("");
+    setTranslationOutput("");
+    setConfidence(null);
+    setTranslationResult(null);
+  }, []);
+
+  const updateTranslationInput = (value: string | ((current: string) => string)) => {
+    translationRequestGateRef.current.invalidate();
+    setTranslationInput(value);
+    clearCopticTranslation();
+  };
+
+  const updateEnglishInput = (value: string) => {
+    translationRequestGateRef.current.invalidate();
+    setEnglishInput(value);
+    setEnglishState("idle");
+    setEnglishError("");
+    setEnglishOutput("");
+    setEnglishConfidence(null);
+  };
+
+  const updateTranslationMethod = (method: "published" | "experimental") => {
+    translationRequestGateRef.current.invalidate();
+    setTranslationMethod(method);
+    clearCopticTranslation();
+  };
+
+  const updateTranslatorDialect = useCallback((dialect: "sahidic" | "bohairic") => {
+    translationRequestGateRef.current.invalidate();
+    setTranslatorDialect(dialect);
+    clearCopticTranslation();
+    setEnglishState("idle");
+    setEnglishError("");
+    setEnglishOutput("");
+    setEnglishConfidence(null);
+  }, [clearCopticTranslation]);
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 768px)");
@@ -154,17 +195,17 @@ export default function TranslatorPage() {
     const bohairicOnly = isBohairicOnlyEnabled();
     setGlobalBohairicOnlyEnabled(bohairicOnly);
     if (bohairicOnly) {
-      setTranslatorDialect("bohairic");
+      updateTranslatorDialect("bohairic");
     }
-  }, []);
+  }, [updateTranslatorDialect]);
 
   useEffect(() => {
     if (!bohairicOnlyEnabled) {
       return;
     }
 
-    setTranslatorDialect("bohairic");
-  }, [bohairicOnlyEnabled]);
+    updateTranslatorDialect("bohairic");
+  }, [bohairicOnlyEnabled, updateTranslatorDialect]);
 
   useEffect(() => {
     return () => {
@@ -338,13 +379,13 @@ export default function TranslatorPage() {
     if (isKeyObj(k)) {
       switch (k.key) {
         case "backspace":
-          setTranslationInput((q) => removeLastChar(q));
+          updateTranslationInput((q) => removeLastChar(q));
           return;
         case "shift":
           if (isCopticMode) handleShiftTap();
           return;
         case "space":
-          setTranslationInput((q) => q + " ");
+          updateTranslationInput((q) => q + " ");
           return;
         case "return":
           runCurrentTranslation();
@@ -366,10 +407,12 @@ export default function TranslatorPage() {
 
     const out = applyShiftToChar(typeof k === "string" ? k : "");
     if (!out) return;
-    setTranslationInput((q) => q + out);
+    updateTranslationInput((q) => q + out);
   };
 
   const runTranslation = async (method: "published" | "experimental" = translationMethod) => {
+    const requestId = translationRequestGateRef.current.begin();
+    const isCurrentRequest = () => translationRequestGateRef.current.isCurrent(requestId);
     const text = translationInput.trim();
     if (!text) {
       setTranslationError("Enter Coptic text to translate.");
@@ -386,6 +429,7 @@ export default function TranslatorPage() {
     try {
       if (method === "published") {
         const reference = await publishedTranslation(text, translatorDialect);
+        if (!isCurrentRequest()) return;
         if (!reference) {
           setTranslationOutput("");
           setConfidence(null);
@@ -414,6 +458,7 @@ export default function TranslatorPage() {
       });
 
       const payload = (await res.json()) as TranslationPayload;
+      if (!isCurrentRequest()) return;
       if (!res.ok) {
         setTranslationOutput("");
         setConfidence(null);
@@ -431,6 +476,7 @@ export default function TranslatorPage() {
       setTranslationResult({ ...payload, method: "experimental" });
       setTranslationState("idle");
     } catch {
+      if (!isCurrentRequest()) return;
       setTranslationOutput("");
       setConfidence(null);
       setTranslationResult(null);
@@ -440,6 +486,8 @@ export default function TranslatorPage() {
   };
 
   const runEnglishToCopticTranslation = async () => {
+    const requestId = translationRequestGateRef.current.begin();
+    const isCurrentRequest = () => translationRequestGateRef.current.isCurrent(requestId);
     const text = englishInput.trim();
     if (!text) {
       setEnglishOutput("");
@@ -460,6 +508,7 @@ export default function TranslatorPage() {
       });
 
       const payload = (await res.json()) as TranslationPayload;
+      if (!isCurrentRequest()) return;
       if (!res.ok) {
         setEnglishOutput("");
         setEnglishConfidence(null);
@@ -475,6 +524,7 @@ export default function TranslatorPage() {
       setEnglishConfidence(typeof payload.confidence === "number" ? payload.confidence : null);
       setEnglishState("idle");
     } catch {
+      if (!isCurrentRequest()) return;
       setEnglishOutput("");
       setEnglishConfidence(null);
       setEnglishState("error");
@@ -491,17 +541,23 @@ export default function TranslatorPage() {
   const currentConfidence = isCopticToEnglish ? confidence : englishConfidence;
 
   const handleSwitchDirection = () => {
+    translationRequestGateRef.current.invalidate();
     setDirection((current) => (current === "copticToEnglish" ? "englishToCoptic" : "copticToEnglish"));
+    clearCopticTranslation();
+    setEnglishState("idle");
+    setEnglishError("");
+    setEnglishOutput("");
+    setEnglishConfidence(null);
   };
 
   const handleDialectToggle = () => {
     if (bohairicOnlyEnabled) {
-      setTranslatorDialect("bohairic");
+      updateTranslatorDialect("bohairic");
       return;
     }
 
     const nextDialect = translatorDialect === "bohairic" ? "sahidic" : "bohairic";
-    setTranslatorDialect(nextDialect);
+    updateTranslatorDialect(nextDialect);
   };
 
   return (
@@ -573,10 +629,10 @@ export default function TranslatorPage() {
               value={currentInput}
               onChange={(e) => {
                 if (isCopticToEnglish) {
-                  setTranslationInput(e.target.value);
+                  updateTranslationInput(e.target.value);
                   return;
                 }
-                setEnglishInput(e.target.value);
+                updateEnglishInput(e.target.value);
               }}
               onKeyDown={handleInputKeyDown}
               onPointerDownCapture={hideKeyboardOnManualInputFocus}
@@ -594,10 +650,10 @@ export default function TranslatorPage() {
           </form>
 
           {isCopticToEnglish && <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Translation method">
-            <button type="button" aria-pressed={translationMethod === "published"} className="ui-secondary" onClick={() => { setTranslationMethod("published"); setTranslationResult(null); setTranslationOutput(""); setConfidence(null); setTranslationState("idle"); setTranslationError(""); }}>
+            <button type="button" aria-pressed={translationMethod === "published"} className="ui-secondary" onClick={() => updateTranslationMethod("published")}>
               Published text
             </button>
-            <button type="button" aria-pressed={translationMethod === "experimental"} className="ui-secondary" onClick={() => { setTranslationMethod("experimental"); setTranslationResult(null); setTranslationOutput(""); setConfidence(null); setTranslationState("idle"); setTranslationError(""); }}>
+            <button type="button" aria-pressed={translationMethod === "experimental"} className="ui-secondary" onClick={() => updateTranslationMethod("experimental")}>
               Experimental service
             </button>
             <span className="text-xs text-[var(--text-muted)]">{translationMethod === "published" ? "Exact matches from the bundled corpus; no model inference." : "Uses the configured translation API."}</span>
@@ -606,7 +662,7 @@ export default function TranslatorPage() {
           {currentState === "error" ? (
             <div className="mt-3 text-xs text-[var(--lesson-choice-wrong-text)]" role="alert">
               <p>{currentError}</p>
-              {isCopticToEnglish && translationMethod === "published" && translationInput.trim() && <button type="button" className="ui-text-action" onClick={() => { setTranslationMethod("experimental"); void runTranslation("experimental"); }}>Try the experimental service</button>}
+              {isCopticToEnglish && translationMethod === "published" && translationInput.trim() && <button type="button" className="ui-text-action" onClick={() => { updateTranslationMethod("experimental"); void runTranslation("experimental"); }}>Try the experimental service</button>}
             </div>
           ) : null}
 
