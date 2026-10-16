@@ -897,6 +897,8 @@ function PairLettersLesson({ lesson, step }: { lesson: Lesson; step: UnitLessonS
 
   useEffect(() => {
     resetLessonSession();
+    // Reset behavior depends on these exercise inputs; timeout helpers only use stable refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercises, maxLives, step.exerciseSet, step.id]);
 
   useEffect(() => {

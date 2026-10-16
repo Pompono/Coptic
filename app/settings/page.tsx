@@ -3,7 +3,7 @@ import PageHeader from "../PageHeader";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clearAllUnitProgress } from "../learn/progress";
 import { lessons } from "@/lib/lesson";
 import {
@@ -57,9 +57,9 @@ export default function SettingsPage() {
   }, []);
 
   const selectedLesson = lessons.find((lesson) => lesson.id === devLessonId) ?? lessons[0] ?? null;
-  const selectedLessonSteps =
-    selectedLesson?.progressionGroups?.flatMap((group) => group.lessons).filter((step) => Boolean(step.exerciseSet)) ??
-    [];
+  const selectedLessonSteps = useMemo(() =>
+    selectedLesson?.progressionGroups?.flatMap((group) => group.lessons).filter((step) => Boolean(step.exerciseSet)) ?? [],
+    [selectedLesson]);
 
   useEffect(() => {
     if (!selectedLesson) {

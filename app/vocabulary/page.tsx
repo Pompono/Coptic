@@ -37,7 +37,7 @@ export default function VocabularyPage() {
     // Stable order within one card; rotate the correct answer's position.
     const offset = [...current.word].reduce((sum, letter) => sum + letter.codePointAt(0)!, 0) % unique.length;
     return [...unique.slice(offset), ...unique.slice(0, offset)];
-  }, [current?.id, cards]);
+  }, [current, cards]);
   function rate(rating: string) {
     if (!current) return;
     try {

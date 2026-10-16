@@ -7,6 +7,8 @@ import Link from "@/lib/AppLink";
 import { readDictionaryOptions } from "@/lib/dictionary/preferences";
 import { COPTIC_ALPHABET } from "@/lib/dictionary/search.mjs";
 
+function invalidateGeneration(generation: { current: number }) { generation.current += 1; }
+
 import { type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, type CSSProperties, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   isCopticKeyboardEnabled,
@@ -323,7 +325,7 @@ export default function DictionaryPage() {
       if(current!==generation.current)return;
       setResultKey(JSON.stringify(searchOptions));setVisibleResults(result.entries);setSuggestions(result.suggestions);setHasMore(result.entries.length<result.total);setLoadState('ready');
     }).catch(()=>{if(current===generation.current){setVisibleResults([]);setHasMore(false);setLoadState('error');}});
-    return()=>{generation.current++;};
+    return()=>invalidateGeneration(generation);
   },[searchOptions,searchRestored,loadAttempt]);
   const loadMore=useCallback(()=>{
     if(morePending.current||!hasMore||loadState!=='ready')return;
