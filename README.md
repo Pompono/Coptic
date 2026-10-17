@@ -80,6 +80,8 @@ address to the end of this header, so caller-supplied earlier values do not set
 the key. This assumes requests reach the SSR origin through Amplify's CloudFront
 distribution; if another proxy is added after CloudFront, adjust the trusted
 hop parsing. Do not use a caller-supplied user ID or the first XFF entry.
+Missing or malformed final addresses share a fallback bucket and cannot evade
+the limit by supplying changing header values.
 Serverless instances do not share memory, so use an AWS WAF rate rule at the
 public edge for durable limits, aggregating by the request's source IP rather
 than a forwarded header.

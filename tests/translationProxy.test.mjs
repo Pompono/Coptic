@@ -92,6 +92,22 @@ test("rate limits requests by the last trusted proxy hop, not an identity header
   assert.equal(lastResponse.headers.get("retry-after"), "60");
 });
 
+test("fails closed when a trusted proxy address is missing or malformed", async () => {
+  const handler = createTranslationHandler({ direction: "coptic-en", env, fetchImpl: async () => Response.json({ translation: "ok" }) });
+  let lastResponse;
+  for (let index = 0; index < 31; index += 1) {
+    lastResponse = await handler(new Request("https://site.example/api/translate", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": `attacker-chosen-${index}`,
+      },
+      body: JSON.stringify({ text: "sample" }),
+    }));
+  }
+  assert.equal(lastResponse.status, 429);
+});
+
 test("rejects invalid and oversized text without calling the backend", async () => {
   let calls = 0;
   const handler = createTranslationHandler({ direction: "coptic-en", env, fetchImpl: async () => { calls += 1; return Response.json({ translation: "ok" }); } });
