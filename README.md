@@ -34,12 +34,39 @@ CC BY 4.0. Its source and attribution are documented in
 Coverage is limited to some whole Bohairic passages; there is no published
 Sahidic coverage and an exact match does not certify a source translation.
 
-**Experimental service** and English-to-Coptic still call the existing API routes.
-Those routes launch Python translator processes and require the Python
-dependencies and model weights in `translator/requirements.txt`. This setup is
-not suitable for the AWS Amplify web runtime as currently configured. The
-browser-safe published-text lookup works without that service. No paid service
-or external translation hosting is required for the learning tools.
+**Experimental service** and English-to-Coptic keep their existing browser
+request formats, while the Next.js API routes proxy requests to the standalone
+FastAPI service over HTTPS. Published-text lookup remains local and does not
+call the model service. Requests are limited to 2,000 characters, time out
+after 15 seconds, and receive safe errors if the backend is unavailable.
+
+### AWS Amplify environment variables
+
+In the Amplify app's environment variables for every deployed branch, configure
+these server-side values:
+
+```dotenv
+COPTIC_API_BASE_URL=https://api.coptlingo.com
+COPTIC_API_KEY=<the private API key configured on the FastAPI service>
+```
+
+Keep `COPTIC_API_KEY` private: do not prefix it with `NEXT_PUBLIC_`, expose it
+to client components, or commit it to the repository. The Next.js server sends
+it as the `X-API-Key` header to `POST /api/translate` and
+`POST /api/translate/en-coptic`. Both requests include `text`, `dialect`, and
+`includeConfidence`. The backend should accept that header and request schema.
+Set the URL to an HTTPS origin without a path suffix.
+
+The routes apply an in-process limit of 30 requests per minute, keyed by the
+address appended by Amplify's trusted forwarding proxy; caller-supplied identity
+headers are ignored. Serverless instances do not share memory, so configure an
+AWS WAF rate-based rule on the public app for a durable edge limit before a
+wide launch. Keep WAF's forwarded-IP configuration aligned with the trusted
+proxy chain so clients cannot choose their own rate-limit identity.
+
+For local development, set the same variables in `.env.local` and never commit
+that file. Translation routes return a safe service-unavailable response when
+either value is missing.
 
 The iOS repository's experimental offline model is not bundled here. Its
 generated weights add about 145 MB, are licensed AGPL-3.0, and the source project
@@ -72,7 +99,5 @@ The Python translator can be run directly with:
 python translator/cli.py "ⲡⲉⲛⲛⲟⲩϯ" --dialect bohairic --include-confidence
 ```
 
-`COPTIC_TRANSLATOR_PYTHON_BIN` optionally selects the Python executable and
-`COPTIC_TRANSLATOR_DEFAULT_DIALECT` selects the fallback dialect (`bohairic` or
-`sahidic`). These settings support compatible self-hosted Next.js environments;
-they do not make the Python subprocess routes compatible with AWS Amplify.
+The Python scripts remain available for local model development; the website's
+translation API routes do not launch them.
