@@ -37,32 +37,52 @@ Sahidic coverage and an exact match does not certify a source translation.
 **Experimental service** and English-to-Coptic keep their existing browser
 request formats, while the Next.js API routes proxy requests to the standalone
 FastAPI service over HTTPS. Published-text lookup remains local and does not
-call the model service. Requests are limited to 2,000 characters, time out
-after 15 seconds, and receive safe errors if the backend is unavailable.
+call the model service. Experimental and English-to-Coptic requests are limited
+to 1,200 Unicode characters to match the FastAPI service default. The proxy
+waits up to 25 seconds and returns safe errors if the backend is unavailable.
 
 ### AWS Amplify environment variables
 
-In the Amplify app's environment variables for every deployed branch, configure
-these server-side values:
+In the Amplify app's build environment for every deployed branch, configure:
 
 ```dotenv
 COPTIC_API_BASE_URL=https://api.coptlingo.com
 COPTIC_API_KEY=<the private API key configured on the FastAPI service>
 ```
 
-Keep `COPTIC_API_KEY` private: do not prefix it with `NEXT_PUBLIC_`, expose it
-to client components, or commit it to the repository. The Next.js server sends
-it as the `X-API-Key` header to `POST /api/translate` and
-`POST /api/translate/en-coptic`. Both requests include `text`, `dialect`, and
-`includeConfidence`. The backend should accept that header and request schema.
-Set the URL to an HTTPS origin without a path suffix.
+Amplify build variables are not automatically exposed to the Next.js SSR
+runtime. The checked-in [`amplify.yml`](amplify.yml) runs
+[`scripts/write-amplify-runtime-env.mjs`](scripts/write-amplify-runtime-env.mjs)
+before `next build`; it writes only these two allowlisted values to the ignored,
+mode-restricted `.env.production` file so Route Handlers can read them at
+runtime. It does not print their values. Keep `COPTIC_API_KEY` out of
+`NEXT_PUBLIC_*`, client components, and source control. Restrict access to
+Amplify build and deployment artifacts because the runtime env file contains
+the key. Set the URL to an HTTPS origin without a path suffix.
+
+The standalone [FastAPI API contract](https://github.com/Pompono/Coptic-Translation-API#api)
+provides compatibility routes `POST /api/translate` and
+`POST /api/translate/en-coptic`. They accept `text`, optional `dialect`, and
+optional `includeConfidence`, authenticate through `X-API-Key`, and return
+`translation`, `dialect`, and optional `confidence`. The proxy preserves those
+shapes and adds its own validated limit of 1,200 Unicode characters.
+
+The proxy timeout is 25 seconds, rather than 15, to allow more time for CPU
+inference. The backend's default queue wait can reach 30 seconds and model
+latency varies by EC2 size and load, so 25 seconds cannot cover its worst-case
+queue plus inference time. It leaves a small margin under the common 30-second
+Amplify SSR request budget; verify p95 latency with the backend benchmark on the
+production-sized instance before raising this value or promising a latency SLA.
 
 The routes apply an in-process limit of 30 requests per minute, keyed by the
-address appended by Amplify's trusted forwarding proxy; caller-supplied identity
-headers are ignored. Serverless instances do not share memory, so configure an
-AWS WAF rate-based rule on the public app for a durable edge limit before a
-wide launch. Keep WAF's forwarded-IP configuration aligned with the trusted
-proxy chain so clients cannot choose their own rate-limit identity.
+rightmost address in `X-Forwarded-For`. CloudFront appends the viewer's TCP
+address to the end of this header, so caller-supplied earlier values do not set
+the key. This assumes requests reach the SSR origin through Amplify's CloudFront
+distribution; if another proxy is added after CloudFront, adjust the trusted
+hop parsing. Do not use a caller-supplied user ID or the first XFF entry.
+Serverless instances do not share memory, so use an AWS WAF rate rule at the
+public edge for durable limits, aggregating by the request's source IP rather
+than a forwarded header.
 
 For local development, set the same variables in `.env.local` and never commit
 that file. Translation routes return a safe service-unavailable response when

@@ -10,6 +10,7 @@ import { isBohairicOnlyEnabled } from "../BohairicPreference";
 import { subscribeToMediaQueryChange } from "@/lib/mediaQuery";
 import { publishedTranslation } from "@/lib/localTranslation/referenceClient";
 import { createTranslationRequestGate } from "@/lib/translationRequestGate.mjs";
+import { MAX_TRANSLATION_CHARACTERS } from "@/lib/translationLimits.mjs";
 
 type TranslationPayload = {
   translation?: string;
@@ -422,6 +423,14 @@ export default function TranslatorPage() {
       setTranslationState("error");
       return;
     }
+    if (method === "experimental" && Array.from(text).length > MAX_TRANSLATION_CHARACTERS) {
+      setTranslationOutput("");
+      setConfidence(null);
+      setTranslationResult(null);
+      setTranslationState("error");
+      setTranslationError(`Text must be ${MAX_TRANSLATION_CHARACTERS.toLocaleString()} characters or fewer.`);
+      return;
+    }
 
     setTranslationState("loading");
     setTranslationError("");
@@ -494,6 +503,13 @@ export default function TranslatorPage() {
       setEnglishConfidence(null);
       setEnglishError("Enter English text to translate.");
       setEnglishState("error");
+      return;
+    }
+    if (Array.from(text).length > MAX_TRANSLATION_CHARACTERS) {
+      setEnglishOutput("");
+      setEnglishConfidence(null);
+      setEnglishState("error");
+      setEnglishError(`Text must be ${MAX_TRANSLATION_CHARACTERS.toLocaleString()} characters or fewer.`);
       return;
     }
 
@@ -637,6 +653,8 @@ export default function TranslatorPage() {
               onKeyDown={handleInputKeyDown}
               onPointerDownCapture={hideKeyboardOnManualInputFocus}
               placeholder={isCopticToEnglish ? "Type Coptic text..." : "Type English text..."}
+              maxLength={!isCopticToEnglish || translationMethod === "experimental" ? MAX_TRANSLATION_CHARACTERS : undefined}
+              title={!isCopticToEnglish || translationMethod === "experimental" ? `Maximum ${MAX_TRANSLATION_CHARACTERS.toLocaleString()} characters` : undefined}
               enterKeyHint="go"
               className="min-w-[260px] flex-1 rounded-xl border border-[var(--border-color)] bg-transparent px-3 py-2 text-sm text-[var(--text-color)] outline-none placeholder:text-[var(--text-soft)]"
             />

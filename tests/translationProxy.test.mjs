@@ -96,6 +96,28 @@ test("rejects invalid and oversized text without calling the backend", async () 
   let calls = 0;
   const handler = createTranslationHandler({ direction: "coptic-en", env, fetchImpl: async () => { calls += 1; return Response.json({ translation: "ok" }); } });
   assert.equal((await handler(request({ text: "  " }))).status, 400);
-  assert.equal((await handler(request({ text: "x".repeat(2_001) }))).status, 400);
+  assert.equal((await handler(request({ text: "x".repeat(1_201) }))).status, 400);
   assert.equal(calls, 0);
 });
+
+for (const direction of ["coptic-en", "en-coptic"]) {
+  test(`${direction}: accepts 1,200 Unicode characters and rejects 1,201`, async () => {
+    let calls = 0;
+    const handler = createTranslationHandler({
+      direction,
+      env,
+      fetchImpl: async () => {
+        calls += 1;
+        return Response.json({ translation: "translated" });
+      },
+    });
+    const accepted = await handler(request({ text: "😀".repeat(1_200) }));
+    assert.equal(accepted.status, 200);
+    assert.equal(calls, 1);
+
+    const rejected = await handler(request({ text: "x".repeat(1_201) }));
+    assert.equal(rejected.status, 400);
+    assert.deepEqual(await rejected.json(), { error: "Text must be 1200 characters or fewer." });
+    assert.equal(calls, 1);
+  });
+}
