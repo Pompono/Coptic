@@ -34,12 +34,61 @@ CC BY 4.0. Its source and attribution are documented in
 Coverage is limited to some whole Bohairic passages; there is no published
 Sahidic coverage and an exact match does not certify a source translation.
 
-**Experimental service** and English-to-Coptic still call the existing API routes.
-Those routes launch Python translator processes and require the Python
-dependencies and model weights in `translator/requirements.txt`. This setup is
-not suitable for the AWS Amplify web runtime as currently configured. The
-browser-safe published-text lookup works without that service. No paid service
-or external translation hosting is required for the learning tools.
+**Experimental service** and English-to-Coptic keep their existing browser
+request formats, while the Next.js API routes proxy requests to the standalone
+FastAPI service over HTTPS. Published-text lookup remains local and does not
+call the model service. Experimental and English-to-Coptic requests are limited
+to 1,200 Unicode characters to match the FastAPI service default. The proxy
+waits up to 25 seconds and returns safe errors if the backend is unavailable.
+
+### AWS Amplify environment variables
+
+In the Amplify app's build environment for every deployed branch, configure:
+
+```dotenv
+COPTIC_API_BASE_URL=https://api.coptlingo.com
+COPTIC_API_KEY=<the private API key configured on the FastAPI service>
+```
+
+Amplify build variables are not automatically exposed to the Next.js SSR
+runtime. The checked-in [`amplify.yml`](amplify.yml) runs
+[`scripts/write-amplify-runtime-env.mjs`](scripts/write-amplify-runtime-env.mjs)
+before `next build`; it writes only these two allowlisted values to the ignored,
+mode-restricted `.env.production` file so Route Handlers can read them at
+runtime. It does not print their values. Keep `COPTIC_API_KEY` out of
+`NEXT_PUBLIC_*`, client components, and source control. Restrict access to
+Amplify build and deployment artifacts because the runtime env file contains
+the key. Set the URL to an HTTPS origin without a path suffix.
+
+The standalone [FastAPI API contract](https://github.com/Pompono/Coptic-Translation-API#api)
+provides compatibility routes `POST /api/translate` and
+`POST /api/translate/en-coptic`. They accept `text`, optional `dialect`, and
+optional `includeConfidence`, authenticate through `X-API-Key`, and return
+`translation`, `dialect`, and optional `confidence`. The proxy preserves those
+shapes and adds its own validated limit of 1,200 Unicode characters.
+
+The proxy timeout is 25 seconds, rather than 15, to allow more time for CPU
+inference. The backend's default queue wait can reach 30 seconds and model
+latency varies by EC2 size and load, so 25 seconds cannot cover its worst-case
+queue plus inference time. It leaves a small margin under the common 30-second
+Amplify SSR request budget; verify p95 latency with the backend benchmark on the
+production-sized instance before raising this value or promising a latency SLA.
+
+The routes apply an in-process limit of 30 requests per minute, keyed by the
+rightmost address in `X-Forwarded-For`. CloudFront appends the viewer's TCP
+address to the end of this header, so caller-supplied earlier values do not set
+the key. This assumes requests reach the SSR origin through Amplify's CloudFront
+distribution; if another proxy is added after CloudFront, adjust the trusted
+hop parsing. Do not use a caller-supplied user ID or the first XFF entry.
+Missing or malformed final addresses share a fallback bucket and cannot evade
+the limit by supplying changing header values.
+Serverless instances do not share memory, so use an AWS WAF rate rule at the
+public edge for durable limits, aggregating by the request's source IP rather
+than a forwarded header.
+
+For local development, set the same variables in `.env.local` and never commit
+that file. Translation routes return a safe service-unavailable response when
+either value is missing.
 
 The iOS repository's experimental offline model is not bundled here. Its
 generated weights add about 145 MB, are licensed AGPL-3.0, and the source project
@@ -72,7 +121,5 @@ The Python translator can be run directly with:
 python translator/cli.py "ⲡⲉⲛⲛⲟⲩϯ" --dialect bohairic --include-confidence
 ```
 
-`COPTIC_TRANSLATOR_PYTHON_BIN` optionally selects the Python executable and
-`COPTIC_TRANSLATOR_DEFAULT_DIALECT` selects the fallback dialect (`bohairic` or
-`sahidic`). These settings support compatible self-hosted Next.js environments;
-they do not make the Python subprocess routes compatible with AWS Amplify.
+The Python scripts remain available for local model development; the website's
+translation API routes do not launch them.
